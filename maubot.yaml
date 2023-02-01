@@ -1,10 +1,12 @@
 maubot: 0.1.0
 id: xyz.maubot.status
 version: 1.4.0
-license: 
+license: MIT
 webapp: true
 modules:
 - status
 main_class: StatusBot
 extra_files:
 - base-config.yaml
+database: true
+database_type: asyncpg
