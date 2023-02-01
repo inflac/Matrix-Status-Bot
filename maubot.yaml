@@ -1,0 +1,10 @@
+maubot: 0.1.0
+id: xyz.maubot.status
+version: 1.4.0
+license: 
+webapp: true
+modules:
+- status
+main_class: StatusBot
+extra_files:
+- base-config.yaml
