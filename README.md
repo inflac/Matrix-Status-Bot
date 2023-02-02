@@ -1,5 +1,8 @@
 # Matrix-Status-Bot
 A Matrix Bot that informs you about the current status of your services
+
+## Setup
+Create a file, named base-config.yaml and add your information as formated below.
 <pre><code>allowed:
   ["@user:matrix.server01.de", "RoomID:server02.de"]
 server:
