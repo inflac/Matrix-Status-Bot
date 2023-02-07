@@ -8,9 +8,6 @@ from mautrix.client import MembershipEventDispatcher
 from typing import Type
 import socket
 import requests
-import hashlib
-import string
-import secrets
 
 upgrade_table = UpgradeTable()
 
