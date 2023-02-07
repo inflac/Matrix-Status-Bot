@@ -58,9 +58,22 @@ class StatusBot(Plugin):
     pass
 
   @status.subcommand(help="add a service to observe")
-  @command.argument("message")
-  async def add(self, evt: MessageEvent, message: str) -> None:
-    await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Die Adresse: " + str(message) + " wurde hinzugefügt."))
+  @command.argument("service")
+  @command.argument("port")
+  async def add(self, evt: MessageEvent, service: str, port: str) -> None:
+    q = "SELECT user, time, authenticator FROM allowed_users WHERE LOWER(user)=LOWER($1)"
+    row = await self.database.fetchrow(q, evt.sender)
+    if row:
+      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Du darfst diesen Bot benutzen"))
+      q = """
+          INSERT INTO services (user, service, port) VALUES ($1, $2, $3)
+          ON CONFLICT (user) DO UPDATE SET service=excluded.service, port=excluded.port
+      """
+      time = str(evt.timestamp) 
+      await self.database.execute(q, evt.sender, service, port)
+      await evt.reply(f"{evt.sender} Service hinzugefügt")
+    else:
+      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Du darfst diesen Bot nicht benutzen"))
 
   @status.subcommand(help="remove a service from observation")
   @command.argument("message")
