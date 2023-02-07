@@ -17,7 +17,8 @@ async def upgrade_v1(conn: Connection) -> None:
         """CREATE TABLE services (
             user   TEXT PRIMARY KEY,
             service TEXT NOT NULL,
-            port TEXT NOT NULL
+            port TEXT NOT NULL,
+            time TEXT NOT NULL
         )"""
     )
 
@@ -29,10 +30,6 @@ async def upgrade_v1(conn: Connection) -> None:
             time TEXT NOT NULL
         )"""
     )
-
-@upgrade_table.register(description="Remember user who added value")
-async def upgrade_v2(conn: Connection) -> None:
-    await conn.execute("ALTER TABLE services ADD COLUMN creator TEXT")
 
 @upgrade_table.register(description="Remember user who added value")
 async def upgrade_v2(conn: Connection) -> None:
@@ -64,13 +61,11 @@ class StatusBot(Plugin):
     q = "SELECT user, time, authenticator FROM allowed_users WHERE LOWER(user)=LOWER($1)"
     row = await self.database.fetchrow(q, evt.sender)
     if row:
-      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Du darfst diesen Bot benutzen"))
       q = """
-          INSERT INTO services (user, service, port) VALUES ($1, $2, $3)
+          INSERT INTO services (user, service, port, time) VALUES ($1, $2, $3, $4)
           ON CONFLICT (user) DO UPDATE SET service=excluded.service, port=excluded.port
       """
-      time = str(evt.timestamp) 
-      await self.database.execute(q, evt.sender, service, port)
+      await self.database.execute(q, evt.sender, service, port, evt.timestamp)
       await evt.reply(f"{evt.sender} Service hinzugefügt")
     else:
       await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Du darfst diesen Bot nicht benutzen"))
