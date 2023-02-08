@@ -64,16 +64,16 @@ class StatusBot(Plugin):
       q = "SELECT user, web, noweb FROM services WHERE LOWER(user)=LOWER($1)"
       row_web = await self.database.fetchrow(q, evt.sender)
       if row_web:
-
         user = row_web["user"]
         web = row_web["web"]
         noweb = row_web["noweb"]
-        web = [[x,int(y)] for x,y in zip(web.split(",")[0::2], web.split(",")[1::2])]
-        if [service, int(port)] in web:
+        webform = [[x,int(y)] for x,y in zip(web.split(",")[0::2], web.split(",")[1::2])]
+        if [service, int(port)] in webform:
           await evt.reply(f"Der Service {service}:{port} ist bereits vorhanden.")
         else:
           q = """
           INSERT INTO services (user, web, noweb, time) VALUES ($1, $2, $3, $4)
+          ON CONFLICT (user) DO UPDATE SET web=excluded.web, noweb=excluded.noweb, time=excluded.time
           """
           web += "," + service + "," + port
           await self.database.execute(q, evt.sender, web, noweb, evt.timestamp)
