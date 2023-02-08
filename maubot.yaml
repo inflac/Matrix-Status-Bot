@@ -2,7 +2,6 @@ maubot: 0.1.0
 id: xyz.maubot.status
 version: 1.4.0
 license: MIT
-webapp: true
 modules:
 - status
 main_class: StatusBot

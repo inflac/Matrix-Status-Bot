@@ -16,8 +16,8 @@ async def upgrade_v1(conn: Connection) -> None:
     await conn.execute(
         """CREATE TABLE services (
             user   TEXT PRIMARY KEY,
-            service TEXT NOT NULL,
-            port TEXT NOT NULL,
+            web TEXT NOT NULL,
+            noweb TEXT NOT NULL,
             time TEXT NOT NULL
         )"""
     )
@@ -57,18 +57,38 @@ class StatusBot(Plugin):
   @status.subcommand(help="add a service to observe")
   @command.argument("service")
   @command.argument("port")
-  async def add(self, evt: MessageEvent, service: str, port: str) -> None:
+  async def addweb(self, evt: MessageEvent, service: str, port: str) -> None:
     q = "SELECT user, time, authenticator FROM allowed_users WHERE LOWER(user)=LOWER($1)"
     row = await self.database.fetchrow(q, evt.sender)
     if row:
-      q = """
-          INSERT INTO services (user, service, port, time) VALUES ($1, $2, $3, $4)
-          ON CONFLICT (user) DO UPDATE SET service=excluded.service, port=excluded.port
-      """
-      await self.database.execute(q, evt.sender, service, port, evt.timestamp)
-      await evt.reply(f"{evt.sender} Service hinzugefügt")
+      self.log.debug(f"Command kommt von authentifiziertem Benutzer(durch Datenbankabfrage überprüft)")
+      q = "SELECT user, web, noweb FROM services WHERE LOWER(user)=LOWER($1)"
+      row_web = await self.database.fetchrow(q, evt.sender)
+      if row_web:
+        self.log.debug(f"if row_web true")
+        user = row_web["user"]
+        web = row_web["web"]
+        noweb = row_web["noweb"]
+        web = [[x,int(y)] for x,y in zip(web.split(",")[0::2], web.split(",")[1::2])]
+        self.log.debug(f"{web} aktuell")
+        if [service, int(port)] in web:
+          await evt.reply(f"Der Service {service}:{port} ist bereits vorhanden.")
+        else:
+          q = """
+          INSERT INTO services (user, web, noweb, time) VALUES ($1, $2, $3, $4)
+          """
+          web += "," + service + "," + port
+          await self.database.execute(q, evt.sender, web, noweb, evt.timestamp)
+          await evt.reply(f"Der Service {service}:{port} wurde hinzugefügt.")
+      else:
+        q = """
+        INSERT INTO services (user, web, noweb, time) VALUES ($1, $2, $3, $4)
+        """
+        web = service + "," + port
+        await self.database.execute(q, evt.sender, web, "", evt.timestamp)
+        await evt.reply(f"Der Service {service}:{port} wurde hinzugefügt.")        
     else:
-      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Du darfst diesen Bot nicht benutzen"))
+      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Du darfst diesen Bot nicht benutzen."))
 
   @status.subcommand(help="remove a service from observation")
   @command.argument("message")
@@ -120,8 +140,7 @@ class StatusBot(Plugin):
           INSERT INTO allowed_users (user, time, authenticator) VALUES ($1, $2, $3)
           ON CONFLICT (user) DO UPDATE SET time=excluded.time, authenticator=excluded.authenticator
       """
-      time = str(evt.timestamp) 
-      await self.database.execute(q, user, time, evt.sender)
+      await self.database.execute(q, user, evt.timestamp, evt.sender)
       await evt.reply(f"{user} kann den Bot nun verwenden")
 
   @admin.subcommand(help="deauthorize a person to use the bot")
@@ -143,12 +162,12 @@ class StatusBot(Plugin):
       q = "SELECT user, time, authenticator FROM allowed_users WHERE LOWER(user)=LOWER($1)"
       row = await self.database.fetchrow(q, user)
       if row:
-          user = row["user"]
-          time = row["time"]
-          authenticator = row["authenticator"]
-          await evt.reply(f"[✅]User: `{user}` stored by {authenticator} at `{time}`")
+        user = row["user"]
+        time = row["time"]
+        authenticator = row["authenticator"]
+        await evt.reply(f"[✅]User: `{user}` stored by {authenticator} at `{time}`")
       else:
-          await evt.reply(f"User: `{user}` not found!")
+        await evt.reply(f"User: `{user}` not found!")
 
   @admin.subcommand(help="List authorized users")
   @command.argument("prefix", required=False)
