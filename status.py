@@ -61,16 +61,14 @@ class StatusBot(Plugin):
     q = "SELECT user, time, authenticator FROM allowed_users WHERE LOWER(user)=LOWER($1)"
     row = await self.database.fetchrow(q, evt.sender)
     if row:
-      self.log.debug(f"Command kommt von authentifiziertem Benutzer(durch Datenbankabfrage überprüft)")
       q = "SELECT user, web, noweb FROM services WHERE LOWER(user)=LOWER($1)"
       row_web = await self.database.fetchrow(q, evt.sender)
       if row_web:
-        self.log.debug(f"if row_web true")
+
         user = row_web["user"]
         web = row_web["web"]
         noweb = row_web["noweb"]
         web = [[x,int(y)] for x,y in zip(web.split(",")[0::2], web.split(",")[1::2])]
-        self.log.debug(f"{web} aktuell")
         if [service, int(port)] in web:
           await evt.reply(f"Der Service {service}:{port} ist bereits vorhanden.")
         else:
@@ -105,13 +103,11 @@ class StatusBot(Plugin):
         hostname = self.config["server"][i][0]
         port_noweb = self.config["server"][i][1]
         port_web = self.config["server"][i][2]
-        self.log.debug(f"hostname: `{hostname}` port_noweb {port_noweb} port_web {port_web}")
 
         for j in range(len(port_noweb)):
           sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
           sock.settimeout(3)
           result = sock.connect_ex((hostname, port_noweb[j]))
-          self.log.debug(f"result: `{result}`")
           if result == 0:
             await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body=str(hostname + ":" + str(port_noweb[j]) + " ✅")))
           else:
@@ -178,7 +174,6 @@ class StatusBot(Plugin):
       q = "SELECT user, time, authenticator FROM allowed_users WHERE user LIKE $1"
       rows = await self.database.fetch(q, prefix + "%")
       prefix_reply = f" starting with `{prefix}`" if prefix else ""
-      self.log.debug(f"#Rows: {len(rows)}")
       if len(rows) == 0:
           await evt.reply(f"Nothing{prefix_reply} stored in database :(")
       else:
