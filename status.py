@@ -50,6 +50,10 @@ class StatusBot(Plugin):
     self.config.load_and_update()
     self.client.add_dispatcher(MembershipEventDispatcher)
 
+  async def check_authenticated(self, user: str):
+    q = "SELECT user, time, authenticator FROM allowed_users WHERE LOWER(user)=LOWER($1)"
+    return await self.database.fetchrow(q, user)
+
   @command.new()
   async def status(self, evt: MessageEvent) -> None:
     pass
@@ -58,13 +62,10 @@ class StatusBot(Plugin):
   @command.argument("service")
   @command.argument("port")
   async def addweb(self, evt: MessageEvent, service: str, port: str) -> None:
-    q = "SELECT user, time, authenticator FROM allowed_users WHERE LOWER(user)=LOWER($1)"
-    row = await self.database.fetchrow(q, evt.sender)
-    if row:
+    if self.check_authenticated(evt.sender):
       q = "SELECT user, web, noweb FROM services WHERE LOWER(user)=LOWER($1)"
       row_web = await self.database.fetchrow(q, evt.sender)
       if row_web:
-        user = row_web["user"]
         web = row_web["web"]
         noweb = row_web["noweb"]
         webform = [[x,int(y)] for x,y in zip(web.split(",")[0::2], web.split(",")[1::2])]
@@ -93,6 +94,32 @@ class StatusBot(Plugin):
   async def rem(self, evt: MessageEvent, message: str) -> None:
     await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Die Adresse: " + str(message) + " wurde entfernt."))
 
+  @status.subcommand(help="List your services")
+  async def list(self, evt: MessageEvent) -> None:
+    if self.check_authenticated(evt.sender):
+      q = "SELECT user, web, noweb, time FROM services WHERE user = $1"
+      rows = await self.database.fetch(q, evt.sender)
+      if len(rows) == 0:
+        await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="No services stored in database :("))
+      if len(rows[0]["web"]) == 0:
+        formated_data = "\nwebservices:\n0"
+      else:
+        formated_data = "\nwebservices:"
+        web = rows[0]["web"]
+        webform = [[x,int(y)] for x,y in zip(web.split(",")[0::2], web.split(",")[1::2])]
+        formated_data += " ".join(f"\n{web}" for web in webform)
+      
+      if len(rows[0]["noweb"]) == 0:
+        formated_data += "\nservices:\n0"
+      else:
+        formated_data += "\nservices:"
+        noweb = rows[0]["noweb"]
+        nowebform = [[x,int(y)] for x,y in zip(noweb.split(",")[0::2], web.split(",")[1::2])]
+        formated_data += " ".join(f"\n{noweb}" for noweb in nowebform)
+      await evt.reply(f"You observe {len(rows)} services:\n\n```{formated_data}")
+    else:
+      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Du hast keine Berechtigungen für diesen Befehl"))
+
   @status.subcommand(help="ping every service")
   async def ping(self, evt: MessageEvent) -> None:
     if evt.room_id not in self.config["allowed"][1] or evt.sender not in self.config["allowed"][0]:
@@ -119,7 +146,6 @@ class StatusBot(Plugin):
             await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body=str(hostname + ":" + str(port_web[k]) + " ✅")))
           else:
             await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body=str(hostname + ":" + str(port_web[k]) + " 🛑")))
-
 
 
   @command.new()
@@ -166,16 +192,14 @@ class StatusBot(Plugin):
         await evt.reply(f"User: `{user}` not found!")
 
   @admin.subcommand(help="List authorized users")
-  @command.argument("prefix", required=False)
-  async def list(self, evt: MessageEvent, prefix: str | None) -> None:
+  async def list(self, evt: MessageEvent) -> None:
     if evt.room_id not in self.config["allowed"][1] or evt.sender not in self.config["allowed"][0]:
       await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Du hast keine Berechtigungen für diesen Befehl"))
     else:
-      q = "SELECT user, time, authenticator FROM allowed_users WHERE user LIKE $1"
-      rows = await self.database.fetch(q, prefix + "%")
-      prefix_reply = f" starting with `{prefix}`" if prefix else ""
+      q = "SELECT user, time, authenticator FROM allowed_users"
+      rows = await self.database.fetch(q)
       if len(rows) == 0:
-          await evt.reply(f"Nothing{prefix_reply} stored in database :(")
+          await evt.reply(f"Nothing stored in database :(")
       else:
           formatted_data = "\n".join(
               f"* `{row['user']}` stored by {row['authenticator']} at `{row['time']}`" for row in rows
