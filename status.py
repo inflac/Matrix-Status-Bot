@@ -56,7 +56,8 @@ class StatusBot(Plugin):
       int(port)
     except ValueError:
       await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Incorrect syntax used."))
-      exit()
+      return False
+    return True
 
   @command.new()
   async def status(self, evt: MessageEvent) -> None:
@@ -66,25 +67,12 @@ class StatusBot(Plugin):
   @command.argument("service")
   @command.argument("port")
   async def addweb(self, evt: MessageEvent, service: str, port: str) -> None:
-    if await self.check_authenticated(evt.sender):
-      try:
-        int(port)
-      except ValueError:
-        await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Incorrect syntax used."))
-    
-      self.log.info("vor funktion")
-      await self.check_syntax(evt, port)
-      self.log.info("nach funktion")
-      await self.check_syntax2()
-      int(port)
-      self.log.info("zwischen")
-      int(port)
-
+    if await self.check_authenticated(evt.sender): 
+      if await self.check_syntax(evt, port) == False: return
       
       q = "SELECT user, web, noweb FROM services WHERE LOWER(user)=LOWER($1)"
       row = await self.database.fetchrow(q, evt.sender)
       if row:
-        self.log.info("1")
         web = row["web"]
         noweb = row["noweb"]
         q = """
@@ -92,24 +80,18 @@ class StatusBot(Plugin):
             ON CONFLICT (user) DO UPDATE SET web=excluded.web, time=excluded.time
             """
         if web != None:
-          self.log.info("2")
           webform = [[x,int(y)] for x,y in zip(web.split(",")[0::2], web.split(",")[1::2])]
-          self.log.info("3")
           if [service, int(port)] in webform:
-            self.log.info("4")
             await evt.reply(f"Der Service {service}:{port} ist bereits vorhanden.")
           else:
-            self.log.info("5")
             web += "," + service + "," + port
             await self.database.execute(q, evt.sender, web, noweb, evt.timestamp)
             await evt.reply(f"Der Service {service}:{port} wurde hinzugefügt.")
         else:
-          self.log.info("6")
           web = service + "," + port
           await self.database.execute(q, evt.sender, web, noweb, evt.timestamp)
           await evt.reply(f"Der Service {service}:{port} wurde hinzugefügt.")
       else:
-        self.log.info("7")
         q = """
         INSERT INTO services (user, web, noweb, time) VALUES ($1, $2, $3, $4)
         """
@@ -124,11 +106,7 @@ class StatusBot(Plugin):
   @command.argument("port")
   async def addnoweb(self, evt: MessageEvent, service: str, port: str) -> None:
     if await self.check_authenticated(evt.sender):
-      try:
-        int(port)
-      except ValueError:
-        await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Incorrect syntax used."))
-        return
+      if await self.check_syntax(evt, port) == False: return
 
       q = "SELECT user, web, noweb FROM services WHERE LOWER(user)=LOWER($1)"
       row = await self.database.fetchrow(q, evt.sender)
@@ -167,11 +145,7 @@ class StatusBot(Plugin):
   @command.argument("port")
   async def rem(self, evt: MessageEvent, service: str, port: str) -> None:
     if await self.check_authenticated(evt.sender):
-      try:
-        int(port)
-      except ValueError:
-        await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Incorrect syntax used."))
-        return
+      if await self.check_syntax(evt, port) == False: return
 
       q = "SELECT user, web, noweb FROM services WHERE LOWER(user)=LOWER($1)"
       row = await self.database.fetchrow(q, evt.sender)
