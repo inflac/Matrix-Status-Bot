@@ -8,6 +8,7 @@ from mautrix.client import MembershipEventDispatcher
 from typing import Type
 import socket
 import requests
+import re
 
 upgrade_table = UpgradeTable()
 
@@ -50,6 +51,13 @@ class StatusBot(Plugin):
     q = "SELECT user, time, authenticator FROM allowed_users WHERE LOWER(user)=LOWER($1)"
     return await self.database.fetchrow(q, user)
 
+  async def check_syntax(self, evt: MessageEvent, port: str):
+    try:
+      int(port)
+    except ValueError:
+      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Incorrect syntax used."))
+      exit()
+
   @command.new()
   async def status(self, evt: MessageEvent) -> None:
     pass
@@ -58,10 +66,25 @@ class StatusBot(Plugin):
   @command.argument("service")
   @command.argument("port")
   async def addweb(self, evt: MessageEvent, service: str, port: str) -> None:
-    if self.check_authenticated(evt.sender):
+    if await self.check_authenticated(evt.sender):
+      try:
+        int(port)
+      except ValueError:
+        await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Incorrect syntax used."))
+    
+      self.log.info("vor funktion")
+      await self.check_syntax(evt, port)
+      self.log.info("nach funktion")
+      await self.check_syntax2()
+      int(port)
+      self.log.info("zwischen")
+      int(port)
+
+      
       q = "SELECT user, web, noweb FROM services WHERE LOWER(user)=LOWER($1)"
       row = await self.database.fetchrow(q, evt.sender)
       if row:
+        self.log.info("1")
         web = row["web"]
         noweb = row["noweb"]
         q = """
@@ -69,18 +92,24 @@ class StatusBot(Plugin):
             ON CONFLICT (user) DO UPDATE SET web=excluded.web, time=excluded.time
             """
         if web != None:
+          self.log.info("2")
           webform = [[x,int(y)] for x,y in zip(web.split(",")[0::2], web.split(",")[1::2])]
+          self.log.info("3")
           if [service, int(port)] in webform:
+            self.log.info("4")
             await evt.reply(f"Der Service {service}:{port} ist bereits vorhanden.")
           else:
+            self.log.info("5")
             web += "," + service + "," + port
             await self.database.execute(q, evt.sender, web, noweb, evt.timestamp)
             await evt.reply(f"Der Service {service}:{port} wurde hinzugefügt.")
         else:
+          self.log.info("6")
           web = service + "," + port
           await self.database.execute(q, evt.sender, web, noweb, evt.timestamp)
           await evt.reply(f"Der Service {service}:{port} wurde hinzugefügt.")
       else:
+        self.log.info("7")
         q = """
         INSERT INTO services (user, web, noweb, time) VALUES ($1, $2, $3, $4)
         """
@@ -88,13 +117,19 @@ class StatusBot(Plugin):
         await self.database.execute(q, evt.sender, web, None, evt.timestamp)
         await evt.reply(f"Der Service {service}:{port} wurde hinzugefügt.")        
     else:
-      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Du darfst diesen Bot nicht benutzen."))
+      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You aren't allowed to use this bot."))
 
   @status.subcommand(help="add a service to observe")
   @command.argument("service")
   @command.argument("port")
   async def addnoweb(self, evt: MessageEvent, service: str, port: str) -> None:
-    if self.check_authenticated(evt.sender):
+    if await self.check_authenticated(evt.sender):
+      try:
+        int(port)
+      except ValueError:
+        await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Incorrect syntax used."))
+        return
+
       q = "SELECT user, web, noweb FROM services WHERE LOWER(user)=LOWER($1)"
       row = await self.database.fetchrow(q, evt.sender)
       if row:
@@ -124,17 +159,49 @@ class StatusBot(Plugin):
         await self.database.execute(q, evt.sender, None, noweb, evt.timestamp)
         await evt.reply(f"Der Service {service}:{port} wurde hinzugefügt.")        
     else:
-      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Du darfst diesen Bot nicht benutzen."))
+      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You aren't allowed to use this bot."))
 
 
   @status.subcommand(help="remove a service from observation")
-  @command.argument("message")
-  async def rem(self, evt: MessageEvent, message: str) -> None:
-    await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Die Adresse: " + str(message) + " wurde entfernt."))
+  @command.argument("service")
+  @command.argument("port")
+  async def rem(self, evt: MessageEvent, service: str, port: str) -> None:
+    if await self.check_authenticated(evt.sender):
+      try:
+        int(port)
+      except ValueError:
+        await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Incorrect syntax used."))
+        return
+
+      q = "SELECT user, web, noweb FROM services WHERE LOWER(user)=LOWER($1)"
+      row = await self.database.fetchrow(q, evt.sender)
+      if row:
+        web = row["web"]
+        noweb = row["noweb"]
+        removed = False
+        if web != None:
+          webform = [[x,int(y)] for x,y in zip(web.split(",")[0::2], web.split(",")[1::2])]
+          if [service, int(port)] in webform: 
+            re.sub(service + "," + port, '', web)
+            removed = True
+        if noweb != None:
+          nowebform = [[x,int(y)] for x,y in zip(noweb.split(",")[0::2], noweb.split(",")[1::2])]
+          if [service, int(port)] in nowebform: 
+            re.sub(service + "," + port, '', noweb)
+            removed = True
+        if removed == True:
+          await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="The Service was removed."))
+        else:
+          await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You don't observe this service, nothing was removed."))
+      else:
+        await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You don't observe any services"))
+    else:
+      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You aren't allowed to use this bot."))
+            
 
   @status.subcommand(help="List your services")
   async def list(self, evt: MessageEvent) -> None:
-    if self.check_authenticated(evt.sender):
+    if await self.check_authenticated(evt.sender):
       q = "SELECT user, web, noweb, time FROM services WHERE user = $1"
       rows = await self.database.fetch(q, evt.sender)
       if len(rows) == 0:
@@ -159,12 +226,12 @@ class StatusBot(Plugin):
         formated_data += " ".join(f"\n{noweb}" for noweb in nowebform)
       await evt.reply(f"You observe {observations} services:\n\n```{formated_data}")
     else:
-      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Du hast keine Berechtigungen für diesen Befehl"))
+      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You aren't allowed to use this bot."))
 
   @status.subcommand(help="ping every service")
   async def ping(self, evt: MessageEvent) -> None:
     if evt.room_id not in self.config["allowed"][1] or evt.sender not in self.config["allowed"][0]:
-      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Du hast keine Berechtigungen um Abfragen mit diesem Bot durchzuführen"))
+      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You aren't allowed to use this bot."))
       await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Deine Benutzer-ID lautet: " + str(evt.sender) + "."))
     else:
       for i in range(len(self.config["server"])):
