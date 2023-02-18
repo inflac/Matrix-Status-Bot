@@ -155,13 +155,19 @@ class StatusBot(Plugin):
         removed = False
         if web != None:
           webform = [[x,int(y)] for x,y in zip(web.split(",")[0::2], web.split(",")[1::2])]
-          if [service, int(port)] in webform: 
-            re.sub(service + "," + port, '', web)
+          if [service, int(port)] in webform:
+            self.log.info(web)
+            webform.remove([service, int(port)])
+            web = ''.join([str(row[x]) + "," for row in webform for x in range(len(row))])[:-1]
+            self.log.info(web) 
             removed = True
         if noweb != None:
           nowebform = [[x,int(y)] for x,y in zip(noweb.split(",")[0::2], noweb.split(",")[1::2])]
-          if [service, int(port)] in nowebform: 
-            re.sub(service + "," + port, '', noweb)
+          if [service, int(port)] in nowebform:
+            self.log.info(noweb) 
+            nowebform.remove([service, int(port)])
+            noweb = ''.join([str(row[x]) + "," for row in nowebform for x in range(len(row))])[:-1]
+            self.log.info(noweb)
             removed = True
         if removed == True:
           await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="The Service was removed."))
