@@ -220,31 +220,39 @@ class StatusBot(Plugin):
 
   @status.subcommand(help="ping every service")
   async def ping(self, evt: MessageEvent) -> None:
-    if evt.room_id not in self.config["allowed"][1] or evt.sender not in self.config["allowed"][0]:
-      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You aren't allowed to use this bot."))
-      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Deine Benutzer-ID lautet: " + str(evt.sender) + "."))
+    if await self.check_authenticated(evt.sender):
+      q = "SELECT user, web, noweb FROM services WHERE LOWER(user)=LOWER($1)"
+      row = await self.database.fetchrow(q, evt.sender)
+      if row:
+        web = row["web"]
+        noweb = row["noweb"]
+
+        if web != None:
+          webform = [[x, int(y)] for x, y in zip(web.split(",")[0::2], web.split(",")[1::2])]
+          for i in range(len(webform)):
+            respcode = requests.get("https://" + webform[i][0] + ":" + str(webform[i][1]))
+            if str(respcode) == "<Response [200]>":
+              await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body=str(webform[i][0] + ":" + str(webform[i][1]) + " ✅")))
+            else:
+              await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body=str(webform[i][0] + ":" + str(webform[i][1]) + " 🛑")))
+
+        if noweb != None:
+          nowebform = [[x, int(y)] for x, y in zip(noweb.split(",")[0::2], noweb.split(",")[1::2])]
+          for i in range(len(nowebform)):
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(3)
+            result = sock.connect_ex((nowebform[i][0], int(nowebform[i][1])))
+            if result == 0:
+              await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT,
+                                                        body=str(nowebform[i][0] + ":" + str(nowebform[i][1]) + " ✅")))
+            else:
+              await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body=str(nowebform[i][0] + ":" + str(nowebform[i][1]) + " 🛑")))
+      else:
+        await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You don't observe any services"))
     else:
-      for i in range(len(self.config["server"])):
-        hostname = self.config["server"][i][0]
-        port_noweb = self.config["server"][i][1]
-        port_web = self.config["server"][i][2]
-
-        for j in range(len(port_noweb)):
-          sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-          sock.settimeout(3)
-          result = sock.connect_ex((hostname, port_noweb[j]))
-          if result == 0:
-            await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body=str(hostname + ":" + str(port_noweb[j]) + " ✅")))
-          else:
-            await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body=str(hostname + ":" + str(port_noweb[j]) + " 🛑")))
-
-        for k in range(len(port_web)):
-          respcode = requests.get("https://" + hostname + ":" + str(port_web[k]))
-          if str(respcode) == "<Response [200]>":
-            await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body=str(hostname + ":" + str(port_web[k]) + " ✅")))
-          else:
-            await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body=str(hostname + ":" + str(port_web[k]) + " 🛑")))
-
+      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You aren't allowed to use this bot."))
+      await evt.respond(
+        TextMessageEventContent(msgtype=MessageType.TEXT, body="Deine Benutzer-ID lautet: " + str(evt.sender) + "."))
 
   @command.new()
   async def admin(self, evt: MessageEvent) -> None:
