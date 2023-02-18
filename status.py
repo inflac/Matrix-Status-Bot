@@ -169,7 +169,12 @@ class StatusBot(Plugin):
             noweb = ''.join([str(row[x]) + "," for row in nowebform for x in range(len(row))])[:-1]
             self.log.info(noweb)
             removed = True
+        q = """
+            INSERT INTO services (user, web, noweb, time) VALUES ($1, $2, $3, $4)
+            ON CONFLICT (user) DO UPDATE SET web=excluded.web, noweb=excluded.noweb, time=excluded.time
+            """
         if removed == True:
+          await self.database.execute(q, evt.sender, web, noweb, evt.timestamp)
           await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="The Service was removed."))
         else:
           await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You don't observe this service, nothing was removed."))
