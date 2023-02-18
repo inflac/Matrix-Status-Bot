@@ -157,7 +157,10 @@ class StatusBot(Plugin):
           if [service, int(port)] in webform:
             self.log.info(web)
             webform.remove([service, int(port)])
-            web = ''.join([str(row[x]) + "," for row in webform for x in range(len(row))])[:-1]
+            if len(webform) == 0:
+              web = None
+            else:
+              web = ''.join([str(row[x]) + "," for row in webform for x in range(len(row))])[:-1]
             self.log.info(web) 
             removed = True
         if noweb != None:
@@ -165,7 +168,10 @@ class StatusBot(Plugin):
           if [service, int(port)] in nowebform:
             self.log.info(noweb) 
             nowebform.remove([service, int(port)])
-            noweb = ''.join([str(row[x]) + "," for row in nowebform for x in range(len(row))])[:-1]
+            if len(nowebform) == 0:
+              noweb = None
+            else: 
+              noweb = ''.join([str(row[x]) + "," for row in nowebform for x in range(len(row))])[:-1]
             self.log.info(noweb)
             removed = True
         q = """
@@ -190,19 +196,24 @@ class StatusBot(Plugin):
       rows = await self.database.fetch(q, evt.sender)
       if len(rows) == 0:
         await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="No services stored in database :("))
-      
       observations = 0
-      formated_data = "\nwebservices:"
-      web = rows[0]["web"]
-      webform = [[x,int(y)] for x,y in zip(web.split(",")[0::2], web.split(",")[1::2])]
-      observations += len(webform)
-      formated_data += " ".join(f"\n{web}" for web in webform)
+      if rows[0]["web"] == None:
+        formated_data = "\nwebservices:\n0"
+      else:
+        formated_data = "\nwebservices:"
+        web = rows[0]["web"]
+        webform = [[x,int(y)] for x,y in zip(web.split(",")[0::2], web.split(",")[1::2])]
+        observations += len(webform)
+        formated_data += " ".join(f"\n{web}" for web in webform)
       
-      formated_data += "\nservices:"
-      noweb = rows[0]["noweb"]
-      nowebform = [[x,int(y)] for x,y in zip(noweb.split(",")[0::2], noweb.split(",")[1::2])]
-      observations += len(nowebform)
-      formated_data += " ".join(f"\n{noweb}" for noweb in nowebform)
+      if rows[0]["noweb"] == None:
+        formated_data += "\nservices:\n0"
+      else:
+        formated_data += "\nservices:"
+        noweb = rows[0]["noweb"]
+        nowebform = [[x,int(y)] for x,y in zip(noweb.split(",")[0::2], noweb.split(",")[1::2])]
+        observations += len(nowebform)
+        formated_data += " ".join(f"\n{noweb}" for noweb in nowebform)
       await evt.reply(f"You observe {observations} services:\n\n```{formated_data}")
     else:
       await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You aren't allowed to use this bot."))
