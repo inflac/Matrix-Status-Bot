@@ -50,6 +50,11 @@ class StatusBot(Plugin):
     q = "SELECT user, time, authenticator FROM allowed_users WHERE LOWER(user)=LOWER($1)"
     return await self.database.fetchrow(q, user)
 
+  async def check_admin(self, evt: MessageEvent, user: str, room:str):
+    if await evt.room_id not in self.config["allowed"][1] or evt.sender not in self.config["allowed"][0]:
+        await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You don't have permission for this command."))
+    else:
+      return True
   async def check_syntax(self, evt: MessageEvent, port: str):
     try:
       int(port)
@@ -66,9 +71,9 @@ class StatusBot(Plugin):
   @command.argument("service")
   @command.argument("port")
   async def addweb(self, evt: MessageEvent, service: str, port: str) -> None:
-    if await self.check_authenticated(evt.sender): 
+    if await self.check_authenticated(evt.sender):
       if await self.check_syntax(evt, port) == False: return
-      
+
       q = "SELECT user, web, noweb FROM services WHERE LOWER(user)=LOWER($1)"
       row = await self.database.fetchrow(q, evt.sender)
       if row:
@@ -96,7 +101,7 @@ class StatusBot(Plugin):
         """
         web = service + "," + port
         await self.database.execute(q, evt.sender, web, None, evt.timestamp)
-        await evt.reply(f"Der Service {service}:{port} wurde hinzugefügt.")        
+        await evt.reply(f"Der Service {service}:{port} wurde hinzugefügt.")
     else:
       await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You aren't allowed to use this bot."))
 
@@ -134,7 +139,7 @@ class StatusBot(Plugin):
         """
         noweb = service + "," + port
         await self.database.execute(q, evt.sender, None, noweb, evt.timestamp)
-        await evt.reply(f"Der Service {service}:{port} wurde hinzugefügt.")        
+        await evt.reply(f"Der Service {service}:{port} wurde hinzugefügt.")
     else:
       await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You aren't allowed to use this bot."))
 
@@ -161,16 +166,16 @@ class StatusBot(Plugin):
               web = None
             else:
               web = ''.join([str(row[x]) + "," for row in webform for x in range(len(row))])[:-1]
-            self.log.info(web) 
+            self.log.info(web)
             removed = True
         if noweb != None:
           nowebform = [[x,int(y)] for x,y in zip(noweb.split(",")[0::2], noweb.split(",")[1::2])]
           if [service, int(port)] in nowebform:
-            self.log.info(noweb) 
+            self.log.info(noweb)
             nowebform.remove([service, int(port)])
             if len(nowebform) == 0:
               noweb = None
-            else: 
+            else:
               noweb = ''.join([str(row[x]) + "," for row in nowebform for x in range(len(row))])[:-1]
             self.log.info(noweb)
             removed = True
@@ -187,7 +192,7 @@ class StatusBot(Plugin):
         await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You don't observe any services"))
     else:
       await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You aren't allowed to use this bot."))
-            
+
 
   @status.subcommand(help="List your services")
   async def list(self, evt: MessageEvent) -> None:
@@ -205,7 +210,7 @@ class StatusBot(Plugin):
         webform = [[x,int(y)] for x,y in zip(web.split(",")[0::2], web.split(",")[1::2])]
         observations += len(webform)
         formated_data += " ".join(f"\n{web}" for web in webform)
-      
+
       if rows[0]["noweb"] == None:
         formated_data += "\nservices:\n0"
       else:
@@ -251,41 +256,35 @@ class StatusBot(Plugin):
     else:
       await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You aren't allowed to use this bot."))
       await evt.respond(
-        TextMessageEventContent(msgtype=MessageType.TEXT, body="Deine Benutzer-ID lautet: " + str(evt.sender) + "."))
+        TextMessageEventContent(msgtype=MessageType.TEXT, body="Your user ID: " + str(evt.sender) + " was logged."))
 
   @command.new()
   async def admin(self, evt: MessageEvent) -> None:
     pass
 
-  @admin.subcommand(help="authorize a person to use the status bot")
+  @admin.subcommand(help="authorize an account to use the bot")
   @command.argument("user", pass_raw=True)
   async def authorize(self, evt: MessageEvent, user: str) -> None:
-    if evt.room_id not in self.config["allowed"][1] or evt.sender not in self.config["allowed"][0]:
-      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Du hast keine Berechtigungen für diesen Befehl"))
-    else:
+    if await self.check_admin(evt, user, evt.room_id):
       q = """
           INSERT INTO allowed_users (user, time, authenticator) VALUES ($1, $2, $3)
           ON CONFLICT (user) DO UPDATE SET time=excluded.time, authenticator=excluded.authenticator
       """
       await self.database.execute(q, user, evt.timestamp, evt.sender)
-      await evt.reply(f"{user} kann den Bot nun verwenden")
+      await evt.reply(f"{user} can now use the bot")
 
   @admin.subcommand(help="deauthorize a person to use the bot")
   @command.argument("user", pass_raw=True)
   async def deauthorize(self, evt: MessageEvent, user: str) -> None:
-    if evt.room_id not in self.config["allowed"][1] or evt.sender not in self.config["allowed"][0]:
-      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Du hast keine Berechtigungen für diesen Befehl"))
-    else:
+    if await self.check_admin(evt, user, evt.room_id):
       q = "DELETE FROM allowed_users WHERE LOWER(user)=LOWER($1)"
       await self.database.execute(q, user)
-      await evt.reply(f"{user} kann den Bot nun nicht mehr verwenden")
-    
+      await evt.reply(f"{user} can't use the bot anymore")
+
   @admin.subcommand(help="Get a specific allowed user")
   @command.argument("user")
   async def get(self, evt: MessageEvent, user: str) -> None:
-    if evt.room_id not in self.config["allowed"][1] or evt.sender not in self.config["allowed"][0]:
-      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Du hast keine Berechtigungen für diesen Befehl"))
-    else:
+    if await self.check_admin(evt, user, evt.room_id):
       q = "SELECT user, time, authenticator FROM allowed_users WHERE LOWER(user)=LOWER($1)"
       row = await self.database.fetchrow(q, user)
       if row:
@@ -298,9 +297,7 @@ class StatusBot(Plugin):
 
   @admin.subcommand(help="List authorized users")
   async def list(self, evt: MessageEvent) -> None:
-    if evt.room_id not in self.config["allowed"][1] or evt.sender not in self.config["allowed"][0]:
-      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Du hast keine Berechtigungen für diesen Befehl"))
-    else:
+    if await self.check_admin(evt, user, evt.room_id):
       q = "SELECT user, time, authenticator FROM allowed_users"
       rows = await self.database.fetch(q)
       if len(rows) == 0:
@@ -316,7 +313,7 @@ class StatusBot(Plugin):
   @classmethod
   def get_db_upgrade_table(cls) -> UpgradeTable | None:
       return upgrade_table
-  
+
   @classmethod
   def get_config_class(cls) -> Type[BaseProxyConfig]:
     return Config
