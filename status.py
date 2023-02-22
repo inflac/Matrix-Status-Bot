@@ -243,8 +243,7 @@ class StatusBot(Plugin):
             sock.settimeout(3)
             result = sock.connect_ex((nowebform[i][0], int(nowebform[i][1])))
             if result == 0:
-              await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT,
-                                                        body=str(nowebform[i][0] + ":" + str(nowebform[i][1]) + " ✅")))
+              await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body=str(nowebform[i][0] + ":" + str(nowebform[i][1]) + " ✅")))
             else:
               await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body=str(nowebform[i][0] + ":" + str(nowebform[i][1]) + " 🛑")))
       else:
