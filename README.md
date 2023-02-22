@@ -13,7 +13,7 @@ A Matrix Maubot bot that lets you observe the online/offline status of your serv
   [["@user:matrix.server.de"], ["RoomID:server02.de"]]
 </code></pre>
 
-## Feature
+## Features
 * user management
 * request all kinds of services
 * add and remove services without recompiling the plugin
