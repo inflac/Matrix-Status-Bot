@@ -21,14 +21,14 @@ A Matrix Maubot bot that lets you observe the online/offline status of your serv
 
 ## Commands
 ### Admin
-Authorize an account to use the bot `!admin authorize <user>` e.x `!admin authorrize @exampleuser.matrix.example.com`
-Deauthorize an account `!admin deauthorize <user>` e.x `!admin deauthorrize @exampleuser.matrix.example.com`
-Search for a specific authorized user `!admin get <user>` e.x `!admin get @exampleuser.matrix.example.com`
-List the authoried users `!admin list <user>` e.x `!admin list @exampleuser.matrix.example.com`
+* Authorize an account to use the bot `!admin authorize <user>` e.x `!admin authorrize @exampleuser.matrix.example.com`
+* Deauthorize an account `!admin deauthorize <user>` e.x `!admin deauthorrize @exampleuser.matrix.example.com`
+* Search for a specific authorized user `!admin get <user>` e.x `!admin get @exampleuser.matrix.example.com`
+* List the authoried users `!admin list <user>` e.x `!admin list @exampleuser.matrix.example.com`
 
 ### Status
-Add a web service `!status addweb <domain> <port>` e.x `!status addweb example.com 80`
-Add a non web service `!status addnoweb <domain> <port>` e.x `!status addnoweb example.com 22`
-Remove a service `!status rem <domain> <port>` e.x `!status rem example.com 25`
-List the services you currently observe `status list`
-Request the status of your services `!status ping`
+* Add a web service `!status addweb <domain> <port>` e.x `!status addweb example.com 80`
+* Add a non web service `!status addnoweb <domain> <port>` e.x `!status addnoweb example.com 22`
+* Remove a service `!status rem <domain> <port>` e.x `!status rem example.com 25`
+* List the services you currently observe `status list`
+* Request the status of your services `!status ping`
