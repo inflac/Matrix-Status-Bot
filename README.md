@@ -1,12 +1,18 @@
 # Matrix-Status-Bot
-A Matrix Bot that informs you about the current status of your services
+A Matrix Maubot bot that lets you observe the online/offline status of your services.
+
 
 ## Setup
-Create a file, named base-config.yaml and add your information as formated below.
+1. Create a file, named base-config.yaml
+2. Enter your accountID and the roomID of your chat with the bot.
+3. Build the Plugin with `mbc Build`.
+4. Upload the plugin to your Maubot instance
 <pre><code>allowed:
   [["@user:matrix.server.de"], ["RoomID:server02.de"]]
-server:
-  [["google.com",[21,22,25], [8080]],
-  ["www.mozilla.org", [], [443]],
-  ["github.com", [], [443]]]
 </code></pre>
+
+## Feature
+* user management
+* request all kinds of services
+* add and remove services without recompiling the plugin
+* add and remove authorized users without recompiling the plugin
