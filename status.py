@@ -1,4 +1,7 @@
 from __future__ import annotations
+
+import asyncio
+
 from maubot import Plugin, MessageEvent
 from maubot.handlers import command
 from mautrix.types import (MessageType, TextMessageEventContent)
@@ -45,6 +48,16 @@ class StatusBot(Plugin):
     await super().start()
     self.config.load_and_update()
     self.client.add_dispatcher(MembershipEventDispatcher)
+    self._poll_task = asyncio.create_task(self.poll())
+
+  async def stop(self) -> None:
+    self._poll_task.cancel()
+
+  async def poll(self) -> None:
+    while True:
+      await self.http.get("https://example.com")
+      self.log.info("something was done")
+      await asyncio.sleep(10 * 60)
 
   async def check_authenticated(self, user: str):
     q = "SELECT user, time, authenticator FROM allowed_users WHERE LOWER(user)=LOWER($1)"
