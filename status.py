@@ -265,7 +265,7 @@ class StatusBot(Plugin):
   @admin.subcommand(help="authorize an account to use the bot")
   @command.argument("user", pass_raw=True)
   async def authorize(self, evt: MessageEvent, user: str) -> None:
-    if await self.check_admin(evt, user, evt.room_id):
+    if await self.check_admin(evt, evt.sender, evt.room_id):
       q = """
           INSERT INTO allowed_users (user, time, authenticator) VALUES ($1, $2, $3)
           ON CONFLICT (user) DO UPDATE SET time=excluded.time, authenticator=excluded.authenticator
@@ -276,7 +276,7 @@ class StatusBot(Plugin):
   @admin.subcommand(help="deauthorize a person to use the bot")
   @command.argument("user", pass_raw=True)
   async def deauthorize(self, evt: MessageEvent, user: str) -> None:
-    if await self.check_admin(evt, user, evt.room_id):
+    if await self.check_admin(evt, evt.sender, evt.room_id):
       q = "DELETE FROM allowed_users WHERE LOWER(user)=LOWER($1)"
       await self.database.execute(q, user)
       await evt.reply(f"{user} can't use the bot anymore")
@@ -284,7 +284,7 @@ class StatusBot(Plugin):
   @admin.subcommand(help="Get a specific allowed user")
   @command.argument("user")
   async def get(self, evt: MessageEvent, user: str) -> None:
-    if await self.check_admin(evt, user, evt.room_id):
+    if await self.check_admin(evt, evt.sender, evt.room_id):
       q = "SELECT user, time, authenticator FROM allowed_users WHERE LOWER(user)=LOWER($1)"
       row = await self.database.fetchrow(q, user)
       if row:
@@ -297,7 +297,7 @@ class StatusBot(Plugin):
 
   @admin.subcommand(help="List authorized users")
   async def list(self, evt: MessageEvent) -> None:
-    if await self.check_admin(evt, user, evt.room_id):
+    if await self.check_admin(evt, evt.sender, evt.room_id):
       q = "SELECT user, time, authenticator FROM allowed_users"
       rows = await self.database.fetch(q)
       if len(rows) == 0:
