@@ -56,7 +56,6 @@ class StatusBot(Plugin):
   async def poll(self) -> None:
     while True:
       await self.http.get("https://example.com")
-      self.log.info("something was done")
       await asyncio.sleep(10 * 60)
 
   async def check_authenticated(self, user: str):
@@ -64,8 +63,8 @@ class StatusBot(Plugin):
     return await self.database.fetchrow(q, user)
 
   async def check_admin(self, evt: MessageEvent):
-    if await evt.room_id not in self.config["allowed"][1] or evt.sender not in self.config["allowed"][0]:
-        await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You don't have permission for this command."))
+    if evt.room_id not in self.config["allowed"][1] or evt.sender not in self.config["allowed"][0]:
+      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You don't have permission for this command."))
     else:
       return True
   async def check_syntax(self, evt: MessageEvent, port: str):
@@ -173,24 +172,20 @@ class StatusBot(Plugin):
         if web != None:
           webform = [[x,int(y)] for x,y in zip(web.split(",")[0::2], web.split(",")[1::2])]
           if [service, int(port)] in webform:
-            self.log.info(web)
             webform.remove([service, int(port)])
             if len(webform) == 0:
               web = None
             else:
               web = ''.join([str(row[x]) + "," for row in webform for x in range(len(row))])[:-1]
-            self.log.info(web)
             removed = True
         if noweb != None:
           nowebform = [[x,int(y)] for x,y in zip(noweb.split(",")[0::2], noweb.split(",")[1::2])]
           if [service, int(port)] in nowebform:
-            self.log.info(noweb)
             nowebform.remove([service, int(port)])
             if len(nowebform) == 0:
               noweb = None
             else:
               noweb = ''.join([str(row[x]) + "," for row in nowebform for x in range(len(row))])[:-1]
-            self.log.info(noweb)
             removed = True
         q = """
             INSERT INTO services (user, web, noweb, time) VALUES ($1, $2, $3, $4)
