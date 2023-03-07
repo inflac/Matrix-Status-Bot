@@ -83,8 +83,6 @@ class StatusBot(Plugin):
     if len(re.findall(":[0-9]+", service)) == 0:
       return True
     elif len(re.findall(":[0-9]+", service)) == 1 and re.findall(":[0-9]+", service)[0][1:] == port and len(re.findall("/.", service)) > 0:
-      self.log.info(re.findall(":[0-9]+", service)[0][1:])
-      self.log.info(port)
       return True
     else:
       await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Incorrect syntax used."))
@@ -268,8 +266,8 @@ class StatusBot(Plugin):
           webform = [[x, int(y)] for x, y in zip(web.split(",")[0::2], web.split(",")[1::2])]
           for i in range(len(webform)):
             
-            if len(re.findall(":[0-9]+", str(webform[i][1]))) == 1:
-              url = str(webform[i][1])
+            if len(re.findall(":[0-9]+", str(webform[i][0]))) == 1:
+              url = str(webform[i][0])
             else:
               url = webform[i][0] + ":" + str(webform[i][1])
             
@@ -277,15 +275,17 @@ class StatusBot(Plugin):
               if await self.check_url("https://" + url) and str(webform[i][1]) != "80":
                 response = requests.get("https://" + url)
                 respcode = response.status_code
+                tls = "🔒️ "
               else:
                 response = requests.get("http://" + url)
                 respcode = response.status_code
+                tls = "🔓️ "
             except socket.gaierror:
               respcode = "Error - couldn't reach Website"
             if str(respcode) == "200":
-              await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body=str(url + " ✅" + "[" + str(respcode) + "]")))
+              await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body=str(url + " ✅" + "[" + tls + str(respcode) + "]")))
             else:
-              await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body=str(url + " 🛑" + "[" + str(respcode) + "]")))
+              await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body=str(url + " 🛑" + "[" + tls + str(respcode) + "]")))
 
         if noweb != None:
           nowebform = [[x, int(y)] for x, y in zip(noweb.split(",")[0::2], noweb.split(",")[1::2])]
