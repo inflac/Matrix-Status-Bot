@@ -11,6 +11,8 @@ from mautrix.client import MembershipEventDispatcher
 from typing import Type
 import socket
 import requests
+from urllib.parse import urlparse
+import http.client
 
 upgrade_table = UpgradeTable()
 
@@ -56,6 +58,7 @@ class StatusBot(Plugin):
   async def poll(self) -> None:
     while True:
       await self.http.get("https://example.com")
+      self.log.info("something was done")
       await asyncio.sleep(10 * 60)
 
   async def check_authenticated(self, user: str):
@@ -74,6 +77,16 @@ class StatusBot(Plugin):
       await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Incorrect syntax used."))
       return False
     return True
+
+  async def check_url(self, url: str):
+    url = urlparse(url)
+    conn = http.client.HTTPConnection(url.netloc)
+    conn.request('HEAD', url.path)
+    if conn.getresponse():
+        return True
+    else:
+        return False
+  
 
   @command.new()
   async def status(self, evt: MessageEvent) -> None:
@@ -243,11 +256,19 @@ class StatusBot(Plugin):
         if web != None:
           webform = [[x, int(y)] for x, y in zip(web.split(",")[0::2], web.split(",")[1::2])]
           for i in range(len(webform)):
-            respcode = requests.get("https://" + webform[i][0] + ":" + str(webform[i][1]))
-            if str(respcode) == "<Response [200]>":
-              await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body=str(webform[i][0] + ":" + str(webform[i][1]) + " ✅")))
+            try:
+              if await self.check_url("https://" + webform[i][0] + ":" + str(webform[i][1])) and str(webform[i][1]) != "80":
+                response = requests.get("https://" + webform[i][0] + ":" + str(webform[i][1]))
+                respcode = response.status_code
+              else:
+                response = requests.get("http://" + webform[i][0] + ":" + str(webform[i][1]))
+                respcode = response.status_code
+            except socket.gaierror:
+              respcode = "Error - couldn't reach Website"
+            if str(respcode) == "200":
+              await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body=str(webform[i][0] + ":" + str(webform[i][1]) + " ✅" + "[" + str(respcode) + "]")))
             else:
-              await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body=str(webform[i][0] + ":" + str(webform[i][1]) + " 🛑")))
+              await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body=str(webform[i][0] + ":" + str(webform[i][1]) + " 🛑" + "[" + str(respcode) + "]")))
 
         if noweb != None:
           nowebform = [[x, int(y)] for x, y in zip(noweb.split(",")[0::2], noweb.split(",")[1::2])]
