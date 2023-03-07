@@ -1,9 +1,6 @@
 # Matrix-Status-Bot
 A Matrix Maubot bot that lets you observe the online/offline status of your services.
 
-## Known errors
-can't ping services like mail.example.com/webmail/ need to add port mail.example.com:80/webmail/
-
 ## Setup
 1. Create a file, named base-config.yaml
 2. Enter your accountID and the roomID of your chat with the bot
