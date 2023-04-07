@@ -4,7 +4,7 @@ import asyncio
 
 from maubot import Plugin, MessageEvent
 from maubot.handlers import command
-from mautrix.types import (MessageType, TextMessageEventContent)
+from mautrix.types import (MessageType, TextMessageEventContent, Format, RoomID)
 from mautrix.util.config import BaseProxyConfig, ConfigUpdateHelper
 from mautrix.util.async_db import UpgradeTable, Connection
 from mautrix.client import MembershipEventDispatcher
@@ -24,7 +24,8 @@ async def upgrade_v1(conn: Connection) -> None:
             user   TEXT PRIMARY KEY,
             web TEXT,
             noweb TEXT,
-            time INTEGER NOT NULL
+            time INTEGER NOT NULL,
+            auto BLOB
         )"""
     )
 
@@ -58,9 +59,28 @@ class StatusBot(Plugin):
 
   async def poll(self) -> None:
     while True:
-      await self.http.get("https://example.com")
-      self.log.info("something was done")
-      await asyncio.sleep(10 * 60)
+      await self.log.info("Vor ausführung")
+      
+      q = "SELECT time, auto, FROM services"
+      rows = await self.database.fetch(q)
+
+      await self.log.info("Sachen gefetched")
+
+      for row in rows:
+        if row["auto"] != 0:
+          content = TextMessageEventContent(
+            msgtype=MessageType.TEXT, format=Format.HTML,
+            body=f"Test\n",
+            formatted_body=f"<strong> Test </strong><br/>")
+          content["license"] = "CC-BY-NC-2.5"
+          content["license_url"] = "inflacsan.de"
+
+          await self.log.info("Nachricht vorbereitet" + str(content))
+
+          await self.client.send_message(row["auto"], content)
+      
+      await self.log.debug("Nach ausführung")
+      await asyncio.sleep(1 * 60)
 
   async def check_authenticated(self, user: str):
     q = "SELECT user, time, authenticator FROM allowed_users WHERE LOWER(user)=LOWER($1)"
@@ -102,6 +122,47 @@ class StatusBot(Plugin):
   async def status(self, evt: MessageEvent) -> None:
     pass
 
+  @status.subcommand(help="send this command to (de)activate auto ping and notification on failure")
+  async def auto(self, evt: MessageEvent) -> None:
+    if await self.check_authenticated(evt.sender):
+      q = "SELECT user, web, noweb, time, auto FROM services WHERE (user)=($1)"
+      row = await self.database.fetchrow(q, evt.sender)
+      if row:
+        auto = row["auto"]
+        q = """
+            INSERT INTO services (user, web, noweb, time, auto) VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (user) DO UPDATE SET time=excluded.time, auto=excluded.auto
+            """
+        if auto != 0:
+          await self.database.execute(q, evt.sender, row["web"], row["noweb"], evt.timestamp, 0)
+          await evt.reply(f"Notification on failure [OFF].")
+        else:
+          await self.database.execute(q, evt.sender, row["web"], row["noweb"], evt.timestamp, evt.room_id)
+          await evt.reply(f"Notification on failure [ON].")
+      await self.log.info("Vor ausführung")
+      
+      q = "SELECT time, auto, FROM services"
+      rows = await self.database.fetch(q)
+
+      await self.log.info("Sachen gefetched")
+
+      for row in rows:
+        if row["auto"] != 0:
+          content = TextMessageEventContent(
+            msgtype=MessageType.TEXT, format=Format.HTML,
+            body=f"Test\n",
+            formatted_body=f"<strong> Test </strong><br/>")
+          content["license"] = "CC-BY-NC-2.5"
+          content["license_url"] = "inflacsan.de"
+
+          await self.log.info("Nachricht vorbereitet" + str(content))
+
+          await self.client.send_message(row["auto"], content)
+      
+      await self.log.debug("Nach ausführung")
+    else:
+      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You aren't allowed to use this bot."))
+
   @status.subcommand(help="add a service to observe")
   @command.argument("service")
   @command.argument("port")
@@ -109,13 +170,13 @@ class StatusBot(Plugin):
     if await self.check_authenticated(evt.sender):
       if await self.check_syntax(evt, service, port) == False: return
 
-      q = "SELECT user, web, noweb FROM services WHERE LOWER(user)=LOWER($1)"
+      q = "SELECT user, web, noweb FROM services WHERE (user)=($1)"
       row = await self.database.fetchrow(q, evt.sender)
       if row:
         web = row["web"]
         noweb = row["noweb"]
         q = """
-            INSERT INTO services (user, web, noweb, time) VALUES ($1, $2, $3, $4)
+            INSERT INTO services (user, web, noweb, time, auto) VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT (user) DO UPDATE SET web=excluded.web, time=excluded.time
             """
         if web != None:
@@ -124,18 +185,18 @@ class StatusBot(Plugin):
             await evt.reply(f"Der Service ist bereits vorhanden.")
           else:
             web += "," + service + "," + port
-            await self.database.execute(q, evt.sender, web, noweb, evt.timestamp)
+            await self.database.execute(q, evt.sender, web, noweb, evt.timestamp, row["auto"])
             await evt.reply(f"The service was added.")
         else:
           web = service + "," + port
-          await self.database.execute(q, evt.sender, web, noweb, evt.timestamp)
+          await self.database.execute(q, evt.sender, web, noweb, evt.timestamp, row["auto"])
           await evt.reply(f"The service was added.")
       else:
         q = """
-        INSERT INTO services (user, web, noweb, time) VALUES ($1, $2, $3, $4)
+        INSERT INTO services (user, web, noweb, time, auto) VALUES ($1, $2, $3, $4, $5)
         """
         web = service + "," + port
-        await self.database.execute(q, evt.sender, web, None, evt.timestamp)
+        await self.database.execute(q, evt.sender, web, None, evt.timestamp, 0)
         await evt.reply(f"Der Service wurde hinzugefügt.")
     else:
       await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You aren't allowed to use this bot."))
@@ -147,13 +208,13 @@ class StatusBot(Plugin):
     if await self.check_authenticated(evt.sender):
       if await self.check_syntax(evt, service, port) == False: return
 
-      q = "SELECT user, web, noweb FROM services WHERE LOWER(user)=LOWER($1)"
+      q = "SELECT user, web, noweb FROM services WHERE (user)=($1)"
       row = await self.database.fetchrow(q, evt.sender)
       if row:
         web = row["web"]
         noweb = row["noweb"]
         q = """
-            INSERT INTO services (user, web, noweb, time) VALUES ($1, $2, $3, $4)
+            INSERT INTO services (user, web, noweb, time, auto) VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT (user) DO UPDATE SET noweb=excluded.noweb, time=excluded.time
             """
         if noweb != None:
@@ -162,18 +223,18 @@ class StatusBot(Plugin):
             await evt.reply(f"Der Service {service}:{port} ist bereits vorhanden.")
           else:
             noweb += "," + service + "," + port
-            await self.database.execute(q, evt.sender, web, noweb, evt.timestamp)
+            await self.database.execute(q, evt.sender, web, noweb, evt.timestamp, row["auto"])
             await evt.reply(f"Der Service {service}:{port} wurde hinzugefügt.")
         else:
           noweb = service + "," + port
-          await self.database.execute(q, evt.sender, web, noweb, evt.timestamp)
+          await self.database.execute(q, evt.sender, web, noweb, evt.timestamp, row["auto"])
           await evt.reply(f"Der Service {service}:{port} wurde hinzugefügt.")
       else:
         q = """
-        INSERT INTO services (user, web, noweb, time) VALUES ($1, $2, $3, $4)
+        INSERT INTO services (user, web, noweb, time, auto) VALUES ($1, $2, $3, $4, $5)
         """
         noweb = service + "," + port
-        await self.database.execute(q, evt.sender, None, noweb, evt.timestamp)
+        await self.database.execute(q, evt.sender, None, noweb, evt.timestamp, 0)
         await evt.reply(f"Der Service {service}:{port} wurde hinzugefügt.")
     else:
       await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You aren't allowed to use this bot."))
@@ -186,7 +247,7 @@ class StatusBot(Plugin):
     if await self.check_authenticated(evt.sender):
       if await self.check_syntax(evt, service, port) == False: return
 
-      q = "SELECT user, web, noweb FROM services WHERE LOWER(user)=LOWER($1)"
+      q = "SELECT user, web, noweb FROM services WHERE (user)=($1)"
       row = await self.database.fetchrow(q, evt.sender)
       if row:
         web = row["web"]
@@ -211,11 +272,11 @@ class StatusBot(Plugin):
               noweb = ''.join([str(row[x]) + "," for row in nowebform for x in range(len(row))])[:-1]
             removed = True
         q = """
-            INSERT INTO services (user, web, noweb, time) VALUES ($1, $2, $3, $4)
+            INSERT INTO services (user, web, noweb, time, auto) VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT (user) DO UPDATE SET web=excluded.web, noweb=excluded.noweb, time=excluded.time
             """
         if removed == True:
-          await self.database.execute(q, evt.sender, web, noweb, evt.timestamp)
+          await self.database.execute(q, evt.sender, web, noweb, evt.timestamp, row["auto"])
           await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="The Service was removed."))
         else:
           await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You don't observe this service, nothing was removed."))
