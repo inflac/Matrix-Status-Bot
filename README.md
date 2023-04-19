@@ -34,4 +34,5 @@ A Matrix Maubot bot that lets you observe the online/offline status of your serv
 
 ### problems
 * There could be a problem when using the bot in a private chat and also in group chat. Need to be tested
-* Would it be good to safe the room also in authorized?
+* If user add a service, check if there are other db entrys with the same room ID. If so, add the service to this entry
+   * Update the userID (Brain goes brrr at the moment)

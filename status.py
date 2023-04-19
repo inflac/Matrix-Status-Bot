@@ -77,7 +77,7 @@ class StatusBot(Plugin):
           content["license_url"] = "inflacsan.de"
 
           await self.log.info("Nachricht vorbereitet" + str(content))
-
+          ## Beim hinzufügen eines services muss der Raum mit gespeichert werden. Geantwortet wird dann in dem entsprechenden Raum
           await self.client.send_message(row["room"], content)
       
       await self.log.debug("Nach ausführung")
@@ -126,18 +126,18 @@ class StatusBot(Plugin):
   @status.subcommand(help="send this command to (de)activate auto ping and notification on failure")
   async def auto(self, evt: MessageEvent) -> None:
     if await self.check_authenticated(evt.sender):
-      q = "SELECT user, room, web, noweb, time, auto FROM services WHERE (user)=($1)"
-      row = await self.database.fetchrow(q, evt.sender)
+      q = "SELECT user, room, web, noweb, time, auto FROM services WHERE (user)=($1) AND (room)=($2)"
+      row = await self.database.fetchrow(q, evt.sender, evt.room_id)
       if row:
         q = """
             INSERT INTO services (user, room, web, noweb, time, auto) VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (user) DO UPDATE SET time=excluded.time, auto=excluded.auto
             """
         if row["auto"] == "True":
-          await self.database.execute(q, evt.sender, row["web"], row["noweb"], evt.timestamp, "False")
+          await self.database.execute(q, evt.sender, evt.room_id, row["web"], row["noweb"], evt.timestamp, "False")
           await evt.reply(f"Notification on failure [OFF].")
         else:
-          await self.database.execute(q, evt.sender, row["web"], row["noweb"], evt.timestamp, "True")
+          await self.database.execute(q, evt.sender, evt.room_id, row["web"], row["noweb"], evt.timestamp, "True")
           await evt.reply(f"Notification on failure [ON].")
     else:
       await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You aren't allowed to use this bot."))
@@ -149,14 +149,14 @@ class StatusBot(Plugin):
     if await self.check_authenticated(evt.sender):
       if await self.check_syntax(evt, service, port) == False: return
 
-      q = "SELECT user, web, noweb FROM services WHERE (user)=($1)"
-      row = await self.database.fetchrow(q, evt.sender)
+      q = "SELECT user, room, web, noweb FROM services WHERE (user)=($1) AND (room)=($2)"
+      row = await self.database.fetchrow(q, evt.sender, evt.room_id)
       if row:
         web = row["web"]
         noweb = row["noweb"]
         q = """
             INSERT INTO services (user, room, web, noweb, time, auto) VALUES ($1, $2, $3, $4, $5)
-            ON CONFLICT (user) DO UPDATE SET web=excluded.web, time=excluded.time
+            ON CONFLICT (user, room) DO UPDATE SET web=excluded.web, time=excluded.time
             """
         if web != None:
           webform = [[x,int(y)] for x,y in zip(web.split(",")[0::2], web.split(",")[1::2])]
@@ -164,18 +164,18 @@ class StatusBot(Plugin):
             await evt.reply(f"Der Service ist bereits vorhanden.")
           else:
             web += "," + service + "," + port
-            await self.database.execute(q, evt.sender, web, noweb, evt.timestamp, row["auto"])
+            await self.database.execute(q, evt.sender, evt.room_id, web, noweb, evt.timestamp, row["auto"])
             await evt.reply(f"The service was added.")
         else:
           web = service + "," + port
-          await self.database.execute(q, evt.sender, web, noweb, evt.timestamp, row["auto"])
+          await self.database.execute(q, evt.sender, evt.room_id, web, noweb, evt.timestamp, row["auto"])
           await evt.reply(f"The service was added.")
       else:
         q = """
         INSERT INTO services (user, room, web, noweb, time, auto) VALUES ($1, $2, $3, $4, $5, $6)
         """
         web = service + "," + port
-        await self.database.execute(q, evt.sender, web, None, evt.timestamp, 0)
+        await self.database.execute(q, evt.sender, evt.room_id, web, None, evt.timestamp, False)
         await evt.reply(f"Der Service wurde hinzugefügt.")
     else:
       await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You aren't allowed to use this bot."))
@@ -187,14 +187,14 @@ class StatusBot(Plugin):
     if await self.check_authenticated(evt.sender):
       if await self.check_syntax(evt, service, port) == False: return
 
-      q = "SELECT user, room, web, noweb FROM services WHERE (user)=($1)"
-      row = await self.database.fetchrow(q, evt.sender)
+      q = "SELECT user, room, web, noweb FROM services WHERE (user)=($1) AND (room)=($2)"
+      row = await self.database.fetchrow(q, evt.sender, evt.room_id)
       if row:
         web = row["web"]
         noweb = row["noweb"]
         q = """
             INSERT INTO services (user, room, web, noweb, time, auto) VALUES ($1, $2, $3, $4, $5, $6)
-            ON CONFLICT (user) DO UPDATE SET noweb=excluded.noweb, time=excluded.time
+            ON CONFLICT (user, room) DO UPDATE SET noweb=excluded.noweb, time=excluded.time
             """
         if noweb != None:
           nowebform = [[x,int(y)] for x,y in zip(noweb.split(",")[0::2], noweb.split(",")[1::2])]
@@ -213,7 +213,7 @@ class StatusBot(Plugin):
         INSERT INTO services (user, room, web, noweb, time, auto) VALUES ($1, $2, $3, $4, $5, $6)
         """
         noweb = service + "," + port
-        await self.database.execute(q, evt.sender, None, noweb, evt.timestamp, 0)
+        await self.database.execute(q, evt.sender, evt.room_id, None, noweb, evt.timestamp, "False")
         await evt.reply(f"Der Service {service}:{port} wurde hinzugefügt.")
     else:
       await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You aren't allowed to use this bot."))
@@ -226,8 +226,8 @@ class StatusBot(Plugin):
     if await self.check_authenticated(evt.sender):
       if await self.check_syntax(evt, service, port) == False: return
 
-      q = "SELECT user, room, web, noweb FROM services WHERE (user)=($1)"
-      row = await self.database.fetchrow(q, evt.sender)
+      q = "SELECT user, room, web, noweb FROM services WHERE (user)=($1) AND (room)=($2)"
+      row = await self.database.fetchrow(q, evt.sender, evt.room_id)
       if row:
         web = row["web"]
         noweb = row["noweb"]
@@ -252,10 +252,10 @@ class StatusBot(Plugin):
             removed = True
         q = """
             INSERT INTO services (user, room, web, noweb, time, auto) VALUES ($1, $2, $3, $4, $5, $6)
-            ON CONFLICT (user) DO UPDATE SET web=excluded.web, noweb=excluded.noweb, time=excluded.time
+            ON CONFLICT (user,room) DO UPDATE SET web=excluded.web, noweb=excluded.noweb, time=excluded.time
             """
         if removed == True:
-          await self.database.execute(q, evt.sender, web, noweb, evt.timestamp, row["auto"])
+          await self.database.execute(q, evt.sender, evt.room_id, web, noweb, evt.timestamp, row["auto"])
           await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="The Service was removed."))
         else:
           await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You don't observe this service, nothing was removed."))
@@ -268,8 +268,8 @@ class StatusBot(Plugin):
   @status.subcommand(help="List your services")
   async def list(self, evt: MessageEvent) -> None:
     if await self.check_authenticated(evt.sender):
-      q = "SELECT user, room, web, noweb, time FROM services WHERE (user)=($1)"
-      rows = await self.database.fetch(q, evt.sender)
+      q = "SELECT user, room, web, noweb, time FROM services WHERE (user)=($1) AND (room)=($2)"
+      rows = await self.database.fetch(q, evt.sender, evt.room_id)
       if len(rows) == 0:
         await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="No services stored in database :("))
       observations = 0
@@ -297,8 +297,8 @@ class StatusBot(Plugin):
   @status.subcommand(help="ping every service")
   async def ping(self, evt: MessageEvent) -> None:
     if await self.check_authenticated(evt.sender):
-      q = "SELECT user, room, web, noweb FROM services WHERE (user)=($1)"
-      row = await self.database.fetchrow(q, evt.sender)
+      q = "SELECT user, room, web, noweb FROM services WHERE (user)=($1) AND (room)=($2)"
+      row = await self.database.fetchrow(q, evt.sender, evt.room_id)
       if row:
         web = row["web"]
         noweb = row["noweb"]
