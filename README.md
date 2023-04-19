@@ -43,4 +43,4 @@ authorized users: A, B
 Chats: private_A, private_B, group_ABC
 possible lists: A, B, AB
 
-$${\color{red}IMPORTANT: user C will be able to read messages in group_ABC that are addressed to the bot! Also, the bots responses are visible to all group members.}$$
+$${\color{red}IMPORTANT:}$$ user C will be able to read messages in group_ABC that are addressed to the bot! Also, the bots responses are visible to all group members.
