@@ -34,7 +34,7 @@ A Matrix Maubot bot that lets you observe the online/offline status of your serv
 * List the services you currently observe `status list`
 * Request the status of your services `!status ping`
 
-## private Chat vs. Groups
+## Private chat vs. groups
 The Bot differentiates service lists by the room_id of a chat. This means a user who adds services in a private chat with the bot will have a list only he can access. If the same user is part of a group, the bot also is a member of, the authorized user can add services to a list that do not interact with his list from the private chat.
 The key is that different authorized members who are part of a group can have a shared list, but also every user is able to have his/her own private list in the direct chat with the bot.
 
