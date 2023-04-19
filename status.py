@@ -21,11 +21,12 @@ upgrade_table = UpgradeTable()
 async def upgrade_v1(conn: Connection) -> None:
     await conn.execute(
         """CREATE TABLE services (
-            user   TEXT PRIMARY KEY,
+            user TEXT PRIMARY KEY,
+            room TEXT,
             web TEXT,
             noweb TEXT,
             time INTEGER NOT NULL,
-            auto BLOB
+            auto TEXT
         )"""
     )
 
@@ -67,7 +68,7 @@ class StatusBot(Plugin):
       await self.log.info("Sachen gefetched")
 
       for row in rows:
-        if row["auto"] != 0:
+        if row["auto"] == "True":
           content = TextMessageEventContent(
             msgtype=MessageType.TEXT, format=Format.HTML,
             body=f"Test\n",
@@ -77,7 +78,7 @@ class StatusBot(Plugin):
 
           await self.log.info("Nachricht vorbereitet" + str(content))
 
-          await self.client.send_message(row["auto"], content)
+          await self.client.send_message(row["room"], content)
       
       await self.log.debug("Nach ausführung")
       await asyncio.sleep(1 * 60)
@@ -128,38 +129,16 @@ class StatusBot(Plugin):
       q = "SELECT user, web, noweb, time, auto FROM services WHERE (user)=($1)"
       row = await self.database.fetchrow(q, evt.sender)
       if row:
-        auto = row["auto"]
         q = """
-            INSERT INTO services (user, web, noweb, time, auto) VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO services (user,room, web, noweb, time, auto) VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT (user) DO UPDATE SET time=excluded.time, auto=excluded.auto
             """
-        if auto != 0:
-          await self.database.execute(q, evt.sender, row["web"], row["noweb"], evt.timestamp, 0)
+        if row["auto"] == "True":
+          await self.database.execute(q, evt.sender, row["web"], row["noweb"], evt.timestamp, "False")
           await evt.reply(f"Notification on failure [OFF].")
         else:
-          await self.database.execute(q, evt.sender, row["web"], row["noweb"], evt.timestamp, evt.room_id)
+          await self.database.execute(q, evt.sender, row["web"], row["noweb"], evt.timestamp, "True")
           await evt.reply(f"Notification on failure [ON].")
-      await self.log.info("Vor ausführung")
-      
-      q = "SELECT time, auto, FROM services"
-      rows = await self.database.fetch(q)
-
-      await self.log.info("Sachen gefetched")
-
-      for row in rows:
-        if row["auto"] != 0:
-          content = TextMessageEventContent(
-            msgtype=MessageType.TEXT, format=Format.HTML,
-            body=f"Test\n",
-            formatted_body=f"<strong> Test </strong><br/>")
-          content["license"] = "CC-BY-NC-2.5"
-          content["license_url"] = "inflacsan.de"
-
-          await self.log.info("Nachricht vorbereitet" + str(content))
-
-          await self.client.send_message(row["auto"], content)
-      
-      await self.log.debug("Nach ausführung")
     else:
       await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You aren't allowed to use this bot."))
 
