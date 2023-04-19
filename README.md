@@ -44,3 +44,7 @@ Chats: private_A, private_B, group_ABC
 possible lists: A, B, AB
 
 IMPORTANT: User C will be able to read messages in group_ABC that are addressed to the bot! Also, the bots responses are visible to all group members.
+
+
+## Notes: 
+* Put ping feature in a function and source it out, so that poll and ping can use it but poll do not need context
