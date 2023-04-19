@@ -17,6 +17,8 @@ A Matrix Maubot bot that lets you observe the online/offline status of your serv
 * request all kinds of services
 * add and remove services without recompiling the plugin
 * add and remove authorized users without recompiling the plugin
+* shared service list between authorized users in groups
+* private service list in privat chat
 
 ## Commands
 ### Admin
@@ -31,3 +33,13 @@ A Matrix Maubot bot that lets you observe the online/offline status of your serv
 * Remove a service `!status rem <domain> <port>` e.x `!status rem example.com 25`
 * List the services you currently observe `status list`
 * Request the status of your services `!status ping`
+
+## private Chat vs. Groups
+The Bot differentiates service lists by the room_id of a chat. This means a user who adds services in a private chat with the bot will have a list only he can access. If the same user is part of a group, the bot also is member of, the authorized user can add services to a list that do not interact with his list from the priavte chat.
+The key is that different authorized members who are part of a group can have a shared list but also every user is able to have his/her own private list in the direct chat with the bot.
+
+Example:
+authorized users: A,B
+Chats: private_A, private_B, group_ABC
+possible lists: A, B, AB
+IMPORTANT: user C will be able to read messages in group_ABC that are addressed to the bot! Also the bots responses are visible to all group members.
