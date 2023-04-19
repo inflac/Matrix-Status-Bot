@@ -81,6 +81,34 @@ class StatusBot(Plugin):
           await self.client.send_message(row["room"], content)
       
       await self.log.debug("Nach ausführung")
+
+
+      '''
+      1) itterate over all entrys in services DB [CHECK]
+          2) if auto == True [CHECK]
+              3) ping all services that are in the list.
+                  4) If a service fails:
+                      4.1) retry
+                      4.2) add to a list of failed services
+                           5) Output list
+                           6) change auto to an error indication state
+                           6.1) If auto was on an error indication state, set it to False and notify the chat.  
+      
+      q = "SELECT time, auto, FROM services"
+      rows = await self.database.fetch(q)
+
+      await self.log.info("Sachen gefetched")
+
+      for row in rows:
+        if row["auto"] == "True" or "INDICATOR":
+          
+
+          todo: 3)
+      
+      '''
+
+
+
       await asyncio.sleep(1 * 60)
 
   async def check_authenticated(self, user: str):
