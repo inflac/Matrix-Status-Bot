@@ -31,8 +31,3 @@ A Matrix Maubot bot that lets you observe the online/offline status of your serv
 * Remove a service `!status rem <domain> <port>` e.x `!status rem example.com 25`
 * List the services you currently observe `status list`
 * Request the status of your services `!status ping`
-
-### problems
-* There could be a problem when using the bot in a private chat and also in group chat. Need to be tested
-* If user add a service, check if there are other db entrys with the same room ID. If so, add the service to this entry
-   * Update the userID (Brain goes brrr at the moment)
