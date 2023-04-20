@@ -101,10 +101,8 @@ class StatusBot(Plugin):
               msgtype=MessageType.TEXT, format=Format.HTML,
               body=f"Because auto ping detected failures a second time, auto ping was turned off.\n You can reactivate it with !status auto",
               formatted_body=f"<strong> Test </strong><br/>")
+            await self.client.send_message(row["room"], content)
             
-            
-            #send notification that it was turned off.
-
 
   async def check_authenticated(self, user: str):
     q = "SELECT user, time, authenticator FROM allowed_users WHERE LOWER(user)=LOWER($1)"
