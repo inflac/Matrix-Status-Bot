@@ -47,4 +47,4 @@ IMPORTANT: User C will be able to read messages in group_ABC that are addressed 
 
 
 ## Notes: 
-* Put ping feature in a function and source it out, so that poll and ping can use it but poll do not need context
+* Output failed services from auto by web and noweb
