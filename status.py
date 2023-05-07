@@ -61,34 +61,32 @@ class StatusBot(Plugin):
 
   async def poll(self) -> None:
     while True:
-      await asyncio.sleep(20)
-      self.log.info("Vor ausführung")     
-
+      await asyncio.sleep(900)
       q = "SELECT user, room, web, noweb, time, auto FROM services"
       rows = await self.database.fetch(q)
 
       for row in rows:
-        if row["auto"] == "True" or "Fail":
+        if row["auto"] == "True" or row["auto"] == "Fail":
           q = """
             INSERT INTO services (user, room, web, noweb, time, auto) VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (room) DO UPDATE SET auto=excluded.auto
             """
-          ping_results = self._ping(row["web"], row["noweb"])
+          ping_results = await self._ping(row["web"], row["noweb"])
           for i in ping_results[1]:
             content = TextMessageEventContent(
               msgtype=MessageType.TEXT, format=Format.HTML,
-              body=f"Hier die gefailten Services",
+              body=f"Warning: Some of your services failed!",
               formatted_body=f"{i}")
             await self.client.send_message(row["room"], content)
-            
-          if ping_results[2] == False and row["auto"] == "True":
+          
+          if ping_results[2] == "False" and row["auto"] == "True":
             await self.database.execute(q, row["user"], row["room"], row["web"], row["noweb"], row["time"], "Fail")
-          if ping_results[2] == False and row["auto"] == "Fail":
+          if ping_results[2] == "False" and row["auto"] == "Fail":
             await self.database.execute(q, row["user"], row["room"], row["web"], row["noweb"], row["time"], "False")
             content = TextMessageEventContent(
               msgtype=MessageType.TEXT, format=Format.HTML,
-              body=f"Because auto ping detected failures a second time, auto ping was turned off.\n You can reactivate it with !status auto",
-              formatted_body=f"<strong> Test </strong><br/>")
+              body=f"Warning: auto ping was turned off",
+              formatted_body=f"Because auto ping detected failures a second time, auto ping was turned off.\nYou can reactivate it with !status auto")
             await self.client.send_message(row["room"], content)
             
 
@@ -128,7 +126,7 @@ class StatusBot(Plugin):
       return False
 
   async def _ping(self, web, noweb):
-    results = [[], [], False] #0 = reachable, 1 = not reachable, 3 = auto
+    results = [[], [], "True"] #0 = reachable, 1 = not reachable, 3 = auto
     if web != None:
       webform = [[x, int(y)] for x, y in zip(web.split(",")[0::2], web.split(",")[1::2])]
       for i in range(len(webform)):
@@ -153,7 +151,7 @@ class StatusBot(Plugin):
         if str(respcode) == "200":
             results[0].append(str(url + " ✅" + "[" + tls + str(respcode) + "]"))
         else:
-            results[0].append(str(url + " 🛑" + "[" + tls + str(respcode) + "]"))
+            results[1].append(str(url + " 🛑" + "[" + tls + str(respcode) + "]"))
 
       if noweb != None:
         nowebform = [[x, int(y)] for x, y in zip(noweb.split(",")[0::2], noweb.split(",")[1::2])]
@@ -164,14 +162,11 @@ class StatusBot(Plugin):
           if result == 0:
             results[0].append(str(nowebform[i][0] + ":" + str(nowebform[i][1]) + " ✅"))
           else:
-            results[0].append(str(nowebform[i][0] + ":" + str(nowebform[i][1]) + " 🛑"))
-    if len(results[1]) == 0 and (results[2] == True or results[2] == "Fail"):
+            results[1].append(str(nowebform[i][0] + ":" + str(nowebform[i][1]) + " 🛑"))
+    if len(results[1]) == 0:
       return results
-    elif len(results[1]) > 0 and results[2]:
-      results[2] == "Fail"
-      return results
-    elif len(results[1]) > 0 and results[2] == "Fail":
-      results[2] == False
+    else:
+      results[2] = "False"
       return results
 
   @command.new()
@@ -361,7 +356,19 @@ class StatusBot(Plugin):
       if row:
         web = row["web"]
         noweb = row["noweb"]
-        self._ping(web, noweb, False)        
+        ping_results = await self._ping(web, noweb)
+        for i in ping_results[0]:
+          content = TextMessageEventContent(
+            msgtype=MessageType.TEXT, format=Format.HTML,
+            body=f"Ping results",
+            formatted_body=f"{i}")
+          await self.client.send_message(row["room"], content)
+        for i in ping_results[1]:
+          content = TextMessageEventContent(
+            msgtype=MessageType.TEXT, format=Format.HTML,
+            body=f"Ping results",
+            formatted_body=f"{i}")
+          await self.client.send_message(row["room"], content)          
       else:
         await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You don't observe any services"))
     else:
