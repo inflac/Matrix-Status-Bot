@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-
+from mautrix.util import background_task
 from maubot import Plugin, MessageEvent
 from maubot.handlers import command
 from mautrix.types import (MessageType, TextMessageEventContent, Format, RoomID)
@@ -54,7 +54,7 @@ class StatusBot(Plugin):
     await super().start()
     self.config.load_and_update()
     self.client.add_dispatcher(MembershipEventDispatcher)
-    self._poll_task = asyncio.create_task(self.poll())
+    self._poll_task = background_task.create(self.poll())
 
   async def stop(self) -> None:
     self._poll_task.cancel()
@@ -62,12 +62,12 @@ class StatusBot(Plugin):
   async def poll(self) -> None:
     while True:
       await asyncio.sleep(20)
-      await self.log.info("Vor ausführung")
+      self.log.info("Vor ausführung")
       
       q = "SELECT room, time, auto FROM services"
       rows = await self.database.fetch(q)
 
-      await self.log.info("Sachen gefetched")
+      self.log.info("Sachen gefetched")
 
       for row in rows:
         if row["auto"] == "True":
@@ -78,9 +78,9 @@ class StatusBot(Plugin):
           content["license"] = "CC-BY-NC-2.5"
           content["license_url"] = "inflacsan.de"
 
-          await self.log.info("Nachricht vorbereitet" + str(content))
+          self.log.info("Nachricht vorbereitet" + str(content))
           await self.client.send_message(row["room"], content)
-      await self.log.debug("Nach ausführung")
+      self.log.debug("Nach ausführung")
 
       #code for poll, above is for testing only
       q = "SELECT user, room, web, noweb, time, auto FROM services"
