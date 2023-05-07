@@ -62,27 +62,8 @@ class StatusBot(Plugin):
   async def poll(self) -> None:
     while True:
       await asyncio.sleep(20)
-      self.log.info("Vor ausführung")
-      
-      q = "SELECT room, time, auto FROM services"
-      rows = await self.database.fetch(q)
+      self.log.info("Vor ausführung")     
 
-      self.log.info("Sachen gefetched")
-
-      for row in rows:
-        if row["auto"] == "True":
-          content = TextMessageEventContent(
-            msgtype=MessageType.TEXT, format=Format.HTML,
-            body=f"Test\n",
-            formatted_body=f"<strong> Test </strong><br/>")
-          content["license"] = "CC-BY-NC-2.5"
-          content["license_url"] = "inflacsan.de"
-
-          self.log.info("Nachricht vorbereitet" + str(content))
-          await self.client.send_message(row["room"], content)
-      self.log.debug("Nach ausführung")
-
-      #code for poll, above is for testing only
       q = "SELECT user, room, web, noweb, time, auto FROM services"
       rows = await self.database.fetch(q)
 
@@ -92,10 +73,17 @@ class StatusBot(Plugin):
             INSERT INTO services (user, room, web, noweb, time, auto) VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (room) DO UPDATE SET auto=excluded.auto
             """
-          ping_result = _ping(self, web, noweb, True)
-          if ping_result == False and row["auto"] == "True":
+          ping_results = self._ping(row["web"], row["noweb"])
+          for i in ping_results[1]:
+            content = TextMessageEventContent(
+              msgtype=MessageType.TEXT, format=Format.HTML,
+              body=f"Hier die gefailten Services",
+              formatted_body=f"{i}")
+            await self.client.send_message(row["room"], content)
+            
+          if ping_results[2] == False and row["auto"] == "True":
             await self.database.execute(q, row["user"], row["room"], row["web"], row["noweb"], row["time"], "Fail")
-          if ping_result == False and row["auto"] == "Fail":
+          if ping_results[2] == False and row["auto"] == "Fail":
             await self.database.execute(q, row["user"], row["room"], row["web"], row["noweb"], row["time"], "False")
             content = TextMessageEventContent(
               msgtype=MessageType.TEXT, format=Format.HTML,
@@ -139,8 +127,8 @@ class StatusBot(Plugin):
     else:
       return False
 
-  async def _ping(self, web, noweb, auto):
-    auto_failure = []
+  async def _ping(self, web, noweb):
+    results = [[], [], False] #0 = reachable, 1 = not reachable, 3 = auto
     if web != None:
       webform = [[x, int(y)] for x, y in zip(web.split(",")[0::2], web.split(",")[1::2])]
       for i in range(len(webform)):
@@ -163,36 +151,28 @@ class StatusBot(Plugin):
         except socket.gaierror:
           respcode = "Error - couldn't reach Website"
         if str(respcode) == "200":
-          if auto == False:
-            await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body=str(url + " ✅" + "[" + tls + str(respcode) + "]")))
+            results[0].append(str(url + " ✅" + "[" + tls + str(respcode) + "]"))
         else:
-          if auto == False:
-            await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body=str(url + " 🛑" + "[" + tls + str(respcode) + "]")))
-          else:
-            auto_failure.append(ur)
+            results[0].append(str(url + " 🛑" + "[" + tls + str(respcode) + "]"))
 
-    if noweb != None:
-      nowebform = [[x, int(y)] for x, y in zip(noweb.split(",")[0::2], noweb.split(",")[1::2])]
-      for i in range(len(nowebform)):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(3)
-        result = sock.connect_ex((nowebform[i][0], int(nowebform[i][1])))
-        if result == 0:
-          if auto == False:
-            await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body=str(nowebform[i][0] + ":" + str(nowebform[i][1]) + " ✅")))
-        else:
-          if auto == False:
-            await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body=str(nowebform[i][0] + ":" + str(nowebform[i][1]) + " 🛑")))
+      if noweb != None:
+        nowebform = [[x, int(y)] for x, y in zip(noweb.split(",")[0::2], noweb.split(",")[1::2])]
+        for i in range(len(nowebform)):
+          sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+          sock.settimeout(3)
+          result = sock.connect_ex((nowebform[i][0], int(nowebform[i][1])))
+          if result == 0:
+            results[0].append(str(nowebform[i][0] + ":" + str(nowebform[i][1]) + " ✅"))
           else:
-            auto_failure.append(url)
-      
-    if auto:
-      formated_data += " ".join(f"\n{service_fail}" for service_fail in auto_failure)
-      await evt.reply(f"The following {len(auto_failure)} services couldn't be reached:\n\n```{formated_data}")
-
-    if len(auto_failure) == 0:
-      return True
-    else: return False
+            results[0].append(str(nowebform[i][0] + ":" + str(nowebform[i][1]) + " 🛑"))
+    if len(results[1]) == 0 and (results[2] == True or results[2] == "Fail"):
+      return results
+    elif len(results[1]) > 0 and results[2]:
+      results[2] == "Fail"
+      return results
+    elif len(results[1]) > 0 and results[2] == "Fail":
+      results[2] == False
+      return results
 
   @command.new()
   async def status(self, evt: MessageEvent) -> None:
@@ -381,7 +361,7 @@ class StatusBot(Plugin):
       if row:
         web = row["web"]
         noweb = row["noweb"]
-        _ping(self, web, noweb, False)        
+        self._ping(web, noweb, False)        
       else:
         await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You don't observe any services"))
     else:
