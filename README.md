@@ -47,4 +47,5 @@ IMPORTANT: User C will be able to read messages in group_ABC that are addressed 
 
 
 ## Notes: 
-* Output failed services from auto by web and noweb
+* Modify ping to check redirect and other http response codes - handle them.
+* Better check for tls
