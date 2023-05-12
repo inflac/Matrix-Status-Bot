@@ -103,27 +103,29 @@ class StatusBot(Plugin):
     try:
       int(port)
     except ValueError:
-      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Incorrect syntax used."))
+      await evt.reply(TextMessageEventContent(msgtype=MessageType.TEXT, body="Incorrect syntax used."))
       return False
     if int(port) > 65535:
-      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Incorrect syntax used."))
+      await evt.reply(TextMessageEventContent(msgtype=MessageType.TEXT, body="Incorrect syntax used."))
       return False
     if len(re.findall(":[0-9]+", service)) == 0:
       return True
     elif len(re.findall(":[0-9]+", service)) == 1 and re.findall(":[0-9]+", service)[0][1:] == port and len(re.findall("/.", service)) > 0:
       return True
     else:
-      await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Incorrect syntax used."))
+      await evt.reply(TextMessageEventContent(msgtype=MessageType.TEXT, body="Incorrect syntax used."))
       return False
 
   async def check_url(self, url: str):
     url = urlparse(url)
-    conn = http.client.HTTPConnection(url.netloc)
-    conn.request('HEAD', url.path)
-    if conn.getresponse():
-      return True
+    conn = http.client.HTTPSConnection(url.netloc)
+    conn.request('GET', url.path, body=None, headers={"Accept": "text/plain"})
+    resp = conn.getresponse().status
+    conn.close()
+    if len(str(resp)) == 3 and int(str(resp)[0]) > 1 and int(str(resp)[0]) < 4: 
+        return True
     else:
-      return False
+        return False
 
   async def _ping(self, web, noweb):
     results = [[], [], "True"] #0 = reachable, 1 = not reachable, 3 = auto
@@ -139,15 +141,13 @@ class StatusBot(Plugin):
         tls = ""
         try:
           if await self.check_url("https://" + url) and str(webform[i][1]) != "80":
-            response = requests.get("https://" + url)
-            respcode = response.status_code
+            respcode = requests.get("https://" + url).status_code
             tls = "🔒️ "
           else:
-            response = requests.get("http://" + url)
-            respcode = response.status_code
+            respcode = requests.get("http://" + url).status_code
             tls = "🔓️ "
         except socket.gaierror:
-          respcode = "Error - couldn't reach Website"
+          respcode = "Error: couldn't reach Website - " + str(respcode)
         if str(respcode) == "200":
             results[0].append(str(url + " ✅" + "[" + tls + str(respcode) + "]"))
         else:
@@ -310,11 +310,11 @@ class StatusBot(Plugin):
             """
         if removed == True:
           await self.database.execute(q, evt.sender, evt.room_id, web, noweb, evt.timestamp, row["auto"])
-          await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="The Service was removed."))
+          await evt.reply(TextMessageEventContent(msgtype=MessageType.TEXT, body="The Service was removed."))
         else:
-          await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You don't observe this service, nothing was removed."))
+          await evt.reply(TextMessageEventContent(msgtype=MessageType.TEXT, body="You don't observe this service, nothing was removed."))
       else:
-        await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You don't observe any services"))
+        await evt.reply(TextMessageEventContent(msgtype=MessageType.TEXT, body="You don't observe any services"))
     else:
       await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You aren't allowed to use this bot."))
 
@@ -325,26 +325,27 @@ class StatusBot(Plugin):
       q = "SELECT user, room, web, noweb, time FROM services WHERE (room)=($1)"
       rows = await self.database.fetch(q, evt.room_id)
       if len(rows) == 0:
-        await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="No services stored in database :("))
-      observations = 0
-      if rows[0]["web"] == None:
-        formated_data = "\nwebservices:\n0"
+        await evt.reply(TextMessageEventContent(msgtype=MessageType.TEXT, body="No services stored in database :("))
       else:
-        formated_data = "\nwebservices:"
-        web = rows[0]["web"]
-        webform = [[x,int(y)] for x,y in zip(web.split(",")[0::2], web.split(",")[1::2])]
-        observations += len(webform)
-        formated_data += " ".join(f"\n{web}" for web in webform)
+        observations = 0
+        if rows[0]["web"] == None:
+          formated_data = "\nwebservices:\n0"
+        else:
+          formated_data = "\nwebservices:"
+          web = rows[0]["web"]
+          webform = [[x,int(y)] for x,y in zip(web.split(",")[0::2], web.split(",")[1::2])]
+          observations += len(webform)
+          formated_data += " ".join(f"\n{web}" for web in webform)
 
-      if rows[0]["noweb"] == None:
-        formated_data += "\nservices:\n0"
-      else:
-        formated_data += "\nservices:"
-        noweb = rows[0]["noweb"]
-        nowebform = [[x,int(y)] for x,y in zip(noweb.split(",")[0::2], noweb.split(",")[1::2])]
-        observations += len(nowebform)
-        formated_data += " ".join(f"\n{noweb}" for noweb in nowebform)
-      await evt.reply(f"You observe {observations} services:\n\n```{formated_data}")
+        if rows[0]["noweb"] == None:
+          formated_data += "\nservices:\n0"
+        else:
+          formated_data += "\nservices:"
+          noweb = rows[0]["noweb"]
+          nowebform = [[x,int(y)] for x,y in zip(noweb.split(",")[0::2], noweb.split(",")[1::2])]
+          observations += len(nowebform)
+          formated_data += " ".join(f"\n{noweb}" for noweb in nowebform)
+        await evt.reply(f"You observe {observations} services:\n\n```{formated_data}")
     else:
       await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You aren't allowed to use this bot."))
 
@@ -370,7 +371,7 @@ class StatusBot(Plugin):
             formatted_body=f"{i}")
           await self.client.send_message(row["room"], content)          
       else:
-        await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You don't observe any services"))
+        await evt.reply(TextMessageEventContent(msgtype=MessageType.TEXT, body="You don't observe any services"))
     else:
       await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="You aren't allowed to use this bot."))
       await evt.respond(TextMessageEventContent(msgtype=MessageType.TEXT, body="Your user ID: " + str(evt.sender) + " was logged."))
