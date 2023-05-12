@@ -18,7 +18,7 @@ A Matrix Maubot bot that lets you observe the online/offline status of your serv
 * add and remove services without recompiling the plugin
 * add and remove authorized users without recompiling the plugin
 * shared service list between authorized users in groups
-* private service list in privat chat
+* private list of services in privat chat
 
 ## Commands
 ### Admin
@@ -28,9 +28,9 @@ A Matrix Maubot bot that lets you observe the online/offline status of your serv
 * List the authoried users `!admin list <user>` e.x `!admin list @exampleuser.matrix.example.com`
 
 ### Status
-* Add a web service `!status addweb <domain> <port>` e.x `!status addweb example.com 80`
-* Add a non web service `!status addnoweb <domain> <port>` e.x `!status addnoweb example.com 22`
-* Remove a service `!status rem <domain> <port>` e.x `!status rem example.com 25`
+* Add a web service `!status addweb <url> <port>` e.x `!status addweb example.com 80`
+* Add a non web service `!status addnoweb <url> <port>` e.x `!status addnoweb example.com 22`
+* Remove a service `!status rem <url> <port>` e.x `!status rem example.com 25`
 * List the services you currently observe `status list`
 * Request the status of your services `!status ping`
 
@@ -44,3 +44,6 @@ Chats: private_A, private_B, group_ABC
 possible lists: A, B, AB
 
 IMPORTANT: User C will be able to read messages in group_ABC that are addressed to the bot! Also, the bots responses are visible to all group members.
+
+## Security
+I can't guarantee that the current authorization mechanism through matrix ID's is secure!

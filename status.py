@@ -147,7 +147,7 @@ class StatusBot(Plugin):
             respcode = requests.get("http://" + url).status_code
             tls = "🔓️ "
         except socket.gaierror:
-          respcode = "Error: couldn't reach Website - " + str(respcode)
+          respcode = "Error - couldn't reach Website!"
         if str(respcode) == "200":
             results[0].append(str(url + " ✅" + "[" + tls + str(respcode) + "]"))
         else:
