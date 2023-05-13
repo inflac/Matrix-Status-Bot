@@ -384,7 +384,7 @@ class StatusBot(Plugin):
   async def admin(self, evt: MessageEvent) -> None:
     pass
 
-  @admin.subcommand(help="authorize an account to use the bot")
+  @admin.subcommand(help="authorize a person or a whole group to use the bot")
   @command.argument("user", pass_raw=True)
   async def authorize(self, evt: MessageEvent, user: str) -> None:
     if await self.check_admin(evt):
@@ -398,14 +398,14 @@ class StatusBot(Plugin):
       else:  
         await evt.reply(f"{user} can now use the bot")
 
-  @admin.subcommand(help="deauthorize a person to use the bot")
+  @admin.subcommand(help="deauthorize a person or a whole group to use the bot")
   @command.argument("user", pass_raw=True)
   async def deauthorize(self, evt: MessageEvent, user: str) -> None:
     if await self.check_admin(evt):
       q = "DELETE FROM allowed_users WHERE LOWER(user)=LOWER($1)"
       await self.database.execute(q, user)
       if str(user)[0] == "!":
-        await evt.reply(f"Members of Group [{user}] can't use the bot anymore")
+        await evt.reply(f"Members of group [{user}] can't use the bot anymore")
       else:
         await evt.reply(f"{user} can't use the bot anymore")
 

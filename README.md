@@ -16,13 +16,14 @@ A Matrix Maubot bot that lets you observe the online/offline status of your serv
 * user management
 * request all kinds of services
 * add and remove services without recompiling the plugin
-* add and remove authorized users without recompiling the plugin
-* shared service list between authorized users in groups
+* add and remove authorized users/rooms without recompiling the plugin
+* shared service list between authorized users in groups or allow the whole group
 * private list of services in privat chat
 
 ## Commands
 ### Admin
 * Authorize an account to use the bot `!admin authorize <user>` e.x `!admin authorrize @exampleuser.matrix.example.com`
+* Authorize all members of a group to use the bot `!admin authorize <room_id>` e.x `!admin authorrize !randomchars:matrix.example.com`
 * Deauthorize an account `!admin deauthorize <user>` e.x `!admin deauthorrize @exampleuser.matrix.example.com`
 * Search for a specific authorized user `!admin get <user>` e.x `!admin get @exampleuser.matrix.example.com`
 * List the authoried users `!admin list <user>` e.x `!admin list @exampleuser.matrix.example.com`
