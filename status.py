@@ -179,7 +179,7 @@ class StatusBot(Plugin):
 
   @status.subcommand(help="send this command to (de)activate auto ping and notification on failure")
   async def auto(self, evt: MessageEvent) -> None:
-    if await self.check_authenticated(evt.sender):
+    if await self.check_authenticated(evt.sender, evt.room_id):
       q = "SELECT user, room, web, noweb, time, auto FROM services WHERE (room)=($1)"
       row = await self.database.fetchrow(q, evt.room_id)
       if row:
@@ -206,7 +206,7 @@ class StatusBot(Plugin):
   @command.argument("service")
   @command.argument("port")
   async def addweb(self, evt: MessageEvent, service: str, port: str) -> None:
-    if await self.check_authenticated(evt.sender):
+    if await self.check_authenticated(evt.sender, evt.room_id):
       if await self.check_syntax(evt, service, port) == False: return
       q = "SELECT user, room, web, noweb, auto FROM services WHERE (room)=($1)"
       row = await self.database.fetchrow(q, evt.room_id)
@@ -243,7 +243,7 @@ class StatusBot(Plugin):
   @command.argument("service")
   @command.argument("port")
   async def addnoweb(self, evt: MessageEvent, service: str, port: str) -> None:
-    if await self.check_authenticated(evt.sender):
+    if await self.check_authenticated(evt.sender, evt.room_id):
       if await self.check_syntax(evt, service, port) == False: return
       q = "SELECT user, room, web, noweb, auto FROM services WHERE (room)=($1)"
       row = await self.database.fetchrow(q, evt.room_id)
@@ -281,7 +281,7 @@ class StatusBot(Plugin):
   @command.argument("service")
   @command.argument("port")
   async def rem(self, evt: MessageEvent, service: str, port: str) -> None:
-    if await self.check_authenticated(evt.sender):
+    if await self.check_authenticated(evt.sender, evt.room_id):
       if await self.check_syntax(evt, service, port) == False: return
 
       q = "SELECT user, room, web, noweb, auto FROM services WHERE (room)=($1)"
@@ -325,7 +325,7 @@ class StatusBot(Plugin):
 
   @status.subcommand(help="List your services")
   async def list(self, evt: MessageEvent) -> None:
-    if await self.check_authenticated(evt.sender):
+    if await self.check_authenticated(evt.sender, evt.room_id):
       q = "SELECT user, room, web, noweb, time FROM services WHERE (room)=($1)"
       rows = await self.database.fetch(q, evt.room_id)
       if len(rows) == 0:
@@ -355,7 +355,7 @@ class StatusBot(Plugin):
 
   @status.subcommand(help="ping every service")
   async def ping(self, evt: MessageEvent) -> None:
-    if await self.check_authenticated(evt.sender):
+    if await self.check_authenticated(evt.sender, evt.room_id):
       q = "SELECT user, room, web, noweb FROM services WHERE (room)=($1)"
       row = await self.database.fetchrow(q, evt.room_id)
       if row:
