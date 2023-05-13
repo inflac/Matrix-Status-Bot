@@ -90,9 +90,13 @@ class StatusBot(Plugin):
             await self.client.send_message(row["room"], content)
             
 
-  async def check_authenticated(self, user: str):
+  async def check_authenticated(self, user: str, room: str):
     q = "SELECT user, time, authenticator FROM allowed_users WHERE LOWER(user)=LOWER($1)"
-    return await self.database.fetchrow(q, user)
+    row = await self.database.fetchrow(q, user)
+    if row:
+      return row
+    else:
+      return await self.database.fetchrow(q, room)
 
   async def check_admin(self, evt: MessageEvent):
     if evt.room_id not in self.config["allowed"][1] or evt.sender not in self.config["allowed"][0]:
