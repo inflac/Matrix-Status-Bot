@@ -393,7 +393,10 @@ class StatusBot(Plugin):
           ON CONFLICT (user) DO UPDATE SET time=excluded.time, authenticator=excluded.authenticator
       """
       await self.database.execute(q, user, evt.timestamp, evt.sender)
-      await evt.reply(f"{user} can now use the bot")
+      if str(user)[0] == "!":
+        await evt.reply(f"Members of group [{user}] can now use the bot")
+      else:  
+        await evt.reply(f"{user} can now use the bot")
 
   @admin.subcommand(help="deauthorize a person to use the bot")
   @command.argument("user", pass_raw=True)
@@ -401,7 +404,10 @@ class StatusBot(Plugin):
     if await self.check_admin(evt):
       q = "DELETE FROM allowed_users WHERE LOWER(user)=LOWER($1)"
       await self.database.execute(q, user)
-      await evt.reply(f"{user} can't use the bot anymore")
+      if str(user)[0] == "!":
+        await evt.reply(f"Members of Group [{user}] can't use the bot anymore")
+      else:
+        await evt.reply(f"{user} can't use the bot anymore")
 
   @admin.subcommand(help="Get a specific allowed user")
   @command.argument("user")
